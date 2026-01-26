@@ -7,6 +7,8 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/TFX0019/api-go-gds/pkg/config"
 )
 
 func GenerateSixDigitCode() string {
@@ -16,16 +18,16 @@ func GenerateSixDigitCode() string {
 }
 
 func SendVerificationEmail(email, token string) {
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
-
-	from := "1400kss@gmail.com"
-	password := "nknf xqed dszx swoe"
+	smtpHost := config.GetEnv("SMTP_HOST", "")
+	smtpPort := config.GetEnv("SMTP_PORT", "")
+	from := config.GetEnv("SMTP_EMAIL", "")
+	password := config.GetEnv("SMTP_PASSWORD", "")
 
 	to := []string{email}
 	subject := "Verify your account"
 
-	code := fmt.Sprintf("BODY: Click here to verify: http://localhost:3000/api/auth/verify?token=%s", token)
+	baseURL := config.GetEnv("API_URL", "http://localhost:3000")
+	code := fmt.Sprintf("BODY: Click here to verify: %s/api/auth/verify?token=%s", baseURL, token)
 
 	message := []byte("To: " + to[0] + "\r\n" +
 		"From: " + from + "\r\n" +
@@ -54,11 +56,10 @@ func SendVerificationEmail(email, token string) {
 }
 
 func SendRecoveryEmail(email, code string) {
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
-
-	from := "1400kss@gmail.com"
-	password := "nknf xqed dszx swoe"
+	smtpHost := config.GetEnv("SMTP_HOST", "smtp.gmail.com")
+	smtpPort := config.GetEnv("SMTP_PORT", "587")
+	from := config.GetEnv("SMTP_EMAIL", "1400kss@gmail.com")
+	password := config.GetEnv("SMTP_PASSWORD", "nknf xqed dszx swoe")
 
 	to := []string{email}
 	subject := "Verify your account"
