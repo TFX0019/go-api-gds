@@ -1,15 +1,13 @@
-package customers
+package tasks
 
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 
 	"github.com/TFX0019/api-go-gds/pkg/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 type Controller struct {
@@ -30,7 +28,7 @@ func (c *Controller) Create(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	var req CreateCustomerRequest
+	var req CreateTaskRequest
 	if err := ctx.BodyParser(&req); err != nil {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
 	}
@@ -39,23 +37,12 @@ func (c *Controller) Create(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	var avatarURL string
-	file, err := ctx.FormFile("avatar")
-	if err == nil {
-		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
-		path := filepath.Join("uploads", filename)
-		if err := ctx.SaveFile(file, path); err != nil {
-			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save avatar")
-		}
-		avatarURL = fmt.Sprintf("uploads/%s", filename)
-	}
-
-	customerRes, err := c.service.Create(userID, req, avatarURL)
+	res, err := c.service.Create(userID, req)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendCreated(ctx, customerRes, "customer created successfully")
+	return utils.SendCreated(ctx, res, "task created successfully")
 }
 
 func (c *Controller) GetAll(ctx *fiber.Ctx) error {
@@ -71,12 +58,12 @@ func (c *Controller) GetAll(ctx *fiber.Ctx) error {
 		query.Limit = 10
 	}
 
-	res, err := c.service.GetAll(query.Page, query.Limit)
+	res, err := c.service.GetAll(query.Page, query.Limit, query.Status, query.Date)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, res, "customers retrieved successfully")
+	return utils.SendSuccess(ctx, res, "tasks retrieved successfully")
 }
 
 func (c *Controller) GetByID(ctx *fiber.Ctx) error {
@@ -87,10 +74,10 @@ func (c *Controller) GetByID(ctx *fiber.Ctx) error {
 
 	res, err := c.service.GetByID(id)
 	if err != nil {
-		return utils.SendError(ctx, fiber.StatusNotFound, "customer not found")
+		return utils.SendError(ctx, fiber.StatusNotFound, "task not found")
 	}
 
-	return utils.SendSuccess(ctx, res, "customer retrieved successfully")
+	return utils.SendSuccess(ctx, res, "task retrieved successfully")
 }
 
 func (c *Controller) GetByUserID(ctx *fiber.Ctx) error {
@@ -111,12 +98,12 @@ func (c *Controller) GetByUserID(ctx *fiber.Ctx) error {
 		query.Limit = 10
 	}
 
-	res, err := c.service.GetByUserID(userID, query.Page, query.Limit)
+	res, err := c.service.GetByUserID(userID, query.Page, query.Limit, query.Status, query.Date)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, res, "user customers retrieved successfully")
+	return utils.SendSuccess(ctx, res, "user tasks retrieved successfully")
 }
 
 func (c *Controller) Update(ctx *fiber.Ctx) error {
@@ -125,28 +112,17 @@ func (c *Controller) Update(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
 	}
 
-	var req UpdateCustomerRequest
+	var req UpdateTaskRequest
 	if err := ctx.BodyParser(&req); err != nil {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	var avatarURL string
-	file, err := ctx.FormFile("avatar")
-	if err == nil {
-		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
-		path := filepath.Join("uploads", filename)
-		if err := ctx.SaveFile(file, path); err != nil {
-			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save avatar")
-		}
-		avatarURL = fmt.Sprintf("uploads/%s", filename)
-	}
-
-	customerRes, err := c.service.Update(id, req, avatarURL)
+	res, err := c.service.Update(id, req)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, customerRes, "customer updated successfully")
+	return utils.SendSuccess(ctx, res, "task updated successfully")
 }
 
 func (c *Controller) Delete(ctx *fiber.Ctx) error {
@@ -159,11 +135,10 @@ func (c *Controller) Delete(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, nil, "customer deleted successfully")
+	return utils.SendSuccess(ctx, nil, "task deleted successfully")
 }
 
 func getUserIDFromToken(ctx *fiber.Ctx) (string, error) {
-	// Inspect how middleware stores user
 	userToken := ctx.Locals("user")
 	if userToken == nil {
 		return "", fmt.Errorf("no user in context")
@@ -180,13 +155,10 @@ func getUserIDFromToken(ctx *fiber.Ctx) (string, error) {
 	}
 	log.Println(claims)
 
-	// Handle float64 (from JSON) or string
 	switch v := claims["user_id"].(type) {
 	case string:
 		return v, nil
 	case float64:
-		// Attempt to convert to int then string, but if it expects UUID this is bad.
-		// However, for standard int IDs this works.
 		return fmt.Sprintf("%.0f", v), nil
 	default:
 		return "", fmt.Errorf("invalid user_id type in token")

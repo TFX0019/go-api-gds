@@ -9,11 +9,11 @@ import (
 )
 
 type Service interface {
-	Create(userID string, req CreateProductRequest) error
+	Create(userID string, req CreateProductRequest) (*ProductResponse, error)
 	GetAll(page, limit int) (*PaginatedResponse, error)
 	GetByID(id string) (*ProductResponse, error)
 	GetByUserID(userID string, page, limit int) (*PaginatedResponse, error)
-	Update(id string, req UpdateProductRequest) error
+	Update(id string, req UpdateProductRequest) (*ProductResponse, error)
 	Delete(id string) error
 }
 
@@ -25,17 +25,17 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) Create(userID string, req CreateProductRequest) error {
+func (s *service) Create(userID string, req CreateProductRequest) (*ProductResponse, error) {
 	uid, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
-		return errors.New("invalid user id")
+		return nil, errors.New("invalid user id")
 	}
 
 	var clientUUID *uuid.UUID
 	if req.ClientID != nil && *req.ClientID != "" {
 		id, err := uuid.Parse(*req.ClientID)
 		if err != nil {
-			return errors.New("invalid client id")
+			return nil, errors.New("invalid client id")
 		}
 		clientUUID = &id
 	}
@@ -56,7 +56,12 @@ func (s *service) Create(userID string, req CreateProductRequest) error {
 		Total:                req.Total,
 	}
 
-	return s.repo.Create(product)
+	if err := s.repo.Create(product); err != nil {
+		return nil, err
+	}
+
+	res := mapToResponse(*product)
+	return &res, nil
 }
 
 func (s *service) GetAll(page, limit int) (*PaginatedResponse, error) {
@@ -113,10 +118,10 @@ func (s *service) GetByUserID(userID string, page, limit int) (*PaginatedRespons
 	}, nil
 }
 
-func (s *service) Update(id string, req UpdateProductRequest) error {
+func (s *service) Update(id string, req UpdateProductRequest) (*ProductResponse, error) {
 	product, err := s.repo.FindByID(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if req.ClientID != nil {
@@ -125,7 +130,7 @@ func (s *service) Update(id string, req UpdateProductRequest) error {
 		} else {
 			cid, err := uuid.Parse(*req.ClientID)
 			if err != nil {
-				return errors.New("invalid client id")
+				return nil, errors.New("invalid client id")
 			}
 			product.ClientID = &cid
 		}
@@ -158,7 +163,12 @@ func (s *service) Update(id string, req UpdateProductRequest) error {
 	product.ProfitAmount = req.ProfitAmount
 	product.Total = req.Total
 
-	return s.repo.Update(product)
+	if err := s.repo.Update(product); err != nil {
+		return nil, err
+	}
+
+	res := mapToResponse(*product)
+	return &res, nil
 }
 
 func (s *service) Delete(id string) error {

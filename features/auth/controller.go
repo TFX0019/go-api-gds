@@ -106,6 +106,23 @@ func (c *Controller) ForgotPassword(ctx *fiber.Ctx) error {
 	return utils.SendSuccess(ctx, nil, "if email exists, recovery code sent")
 }
 
+func (c *Controller) VerifyCode(ctx *fiber.Ctx) error {
+	var req VerifyCodeRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.validate.Struct(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
+	}
+
+	if err := c.service.VerifyCode(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "code verified")
+}
+
 func (c *Controller) ResetPassword(ctx *fiber.Ctx) error {
 	var req ResetPasswordRequest
 	if err := ctx.BodyParser(&req); err != nil {

@@ -10,7 +10,7 @@ func RegisterRoutes(app fiber.Router, controller *Controller) {
 
 	route.Post("/", controller.Create)
 	route.Get("/", controller.GetAll)
-	route.Get("/user/:userID", controller.GetByUserID)
+	route.Get("/user", controller.GetByUserID)
 	route.Get("/:id", controller.GetByID)
 	route.Put("/:id", controller.Update)
 	route.Delete("/:id", controller.Delete)

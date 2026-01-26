@@ -7,7 +7,9 @@ import (
 
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/customers"
+	"github.com/TFX0019/api-go-gds/features/materials"
 	"github.com/TFX0019/api-go-gds/features/products"
+	"github.com/TFX0019/api-go-gds/features/tasks"
 	"github.com/TFX0019/api-go-gds/pkg/config"
 	"github.com/TFX0019/api-go-gds/pkg/database"
 	"github.com/gofiber/fiber/v2"
@@ -24,7 +26,8 @@ func main() {
 
 	// 3. Migrations
 	// Migrate Auth models
-	if err := database.DB.AutoMigrate(&auth.User{}, &customers.Customer{}, &products.Product{}); err != nil {
+	// Migrate Auth models
+	if err := database.DB.AutoMigrate(&auth.User{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}); err != nil {
 		log.Fatal("Migration failed: ", err)
 	}
 
@@ -57,6 +60,18 @@ func main() {
 	productsService := products.NewService(productsRepo)
 	productsController := products.NewController(productsService)
 	products.RegisterRoutes(app, productsController)
+
+	// Materials Feature
+	materialsRepo := materials.NewRepository(database.DB)
+	materialsService := materials.NewService(materialsRepo)
+	materialsController := materials.NewController(materialsService)
+	materials.RegisterRoutes(app, materialsController)
+
+	// Tasks Feature
+	tasksRepo := tasks.NewRepository(database.DB)
+	tasksService := tasks.NewService(tasksRepo)
+	tasksController := tasks.NewController(tasksService)
+	tasks.RegisterRoutes(app, tasksController)
 
 	// 6. Start Server
 	port := config.GetEnv("PORT", "3000")

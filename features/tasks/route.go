@@ -1,4 +1,4 @@
-package products
+package tasks
 
 import (
 	"github.com/TFX0019/api-go-gds/pkg/middleware"
@@ -6,7 +6,7 @@ import (
 )
 
 func RegisterRoutes(app fiber.Router, controller *Controller) {
-	route := app.Group("/api/products", middleware.Protected())
+	route := app.Group("/api/tasks", middleware.Protected())
 
 	route.Post("/", controller.Create)
 	route.Get("/", controller.GetAll)

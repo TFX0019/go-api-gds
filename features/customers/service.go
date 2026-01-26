@@ -7,11 +7,11 @@ import (
 )
 
 type Service interface {
-	Create(userID string, req CreateCustomerRequest, avatarURL string) error
+	Create(userID string, req CreateCustomerRequest, avatarURL string) (*CustomerResponse, error)
 	GetAll(page, limit int) (*PaginatedResponse, error)
 	GetByID(id string) (*CustomerResponse, error)
 	GetByUserID(userID string, page, limit int) (*PaginatedResponse, error)
-	Update(id string, req UpdateCustomerRequest, avatarURL string) error
+	Update(id string, req UpdateCustomerRequest, avatarURL string) (*CustomerResponse, error)
 	Delete(id string) error
 }
 
@@ -23,10 +23,10 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL string) error {
+func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL string) (*CustomerResponse, error) {
 	uid, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
-		return errors.New("invalid user id")
+		return nil, errors.New("invalid user id")
 	}
 
 	customer := &Customer{
@@ -53,7 +53,12 @@ func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL str
 		CuffSize:         req.CuffSize,
 	}
 
-	return s.repo.Create(customer)
+	if err := s.repo.Create(customer); err != nil {
+		return nil, err
+	}
+
+	res := mapToResponse(*customer)
+	return &res, nil
 }
 
 func (s *service) GetAll(page, limit int) (*PaginatedResponse, error) {
@@ -105,10 +110,10 @@ func (s *service) GetByUserID(userID string, page, limit int) (*PaginatedRespons
 	}, nil
 }
 
-func (s *service) Update(id string, req UpdateCustomerRequest, avatarURL string) error {
+func (s *service) Update(id string, req UpdateCustomerRequest, avatarURL string) (*CustomerResponse, error) {
 	customer, err := s.repo.FindByID(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Update fields
@@ -136,7 +141,12 @@ func (s *service) Update(id string, req UpdateCustomerRequest, avatarURL string)
 		customer.AvatarURL = avatarURL
 	}
 
-	return s.repo.Update(customer)
+	if err := s.repo.Update(customer); err != nil {
+		return nil, err
+	}
+
+	res := mapToResponse(*customer)
+	return &res, nil
 }
 
 func (s *service) Delete(id string) error {

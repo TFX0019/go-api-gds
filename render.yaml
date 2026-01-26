@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: go-api-gds
+    env: docker
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_HOST
+        value: # Add your DB host
+      - key: DB_USER
+        value: # Add your DB user
+      - key: DB_PASSWORD
+        value: # Add your DB password
+      - key: DB_NAME
+        value: # Add your DB name
+      - key: DB_PORT
+        value: "5432"
+      - key: JWT_SECRET
+        value: # Add your JWT secret
+      - key: JWT_REFRESH_SECRET
+        value: # Add your refresh token secret

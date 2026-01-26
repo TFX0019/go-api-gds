@@ -1,4 +1,4 @@
-package customers
+package materials
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func (c *Controller) Create(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	var req CreateCustomerRequest
+	var req CreateMaterialRequest
 	if err := ctx.BodyParser(&req); err != nil {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
 	}
@@ -39,23 +39,23 @@ func (c *Controller) Create(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	var avatarURL string
-	file, err := ctx.FormFile("avatar")
+	var imageURL string
+	file, err := ctx.FormFile("image")
 	if err == nil {
 		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
 		path := filepath.Join("uploads", filename)
 		if err := ctx.SaveFile(file, path); err != nil {
-			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save avatar")
+			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save image")
 		}
-		avatarURL = fmt.Sprintf("uploads/%s", filename)
+		imageURL = fmt.Sprintf("uploads/%s", filename)
 	}
 
-	customerRes, err := c.service.Create(userID, req, avatarURL)
+	res, err := c.service.Create(userID, req, imageURL)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendCreated(ctx, customerRes, "customer created successfully")
+	return utils.SendCreated(ctx, res, "material created successfully")
 }
 
 func (c *Controller) GetAll(ctx *fiber.Ctx) error {
@@ -76,7 +76,7 @@ func (c *Controller) GetAll(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, res, "customers retrieved successfully")
+	return utils.SendSuccess(ctx, res, "materials retrieved successfully")
 }
 
 func (c *Controller) GetByID(ctx *fiber.Ctx) error {
@@ -87,10 +87,10 @@ func (c *Controller) GetByID(ctx *fiber.Ctx) error {
 
 	res, err := c.service.GetByID(id)
 	if err != nil {
-		return utils.SendError(ctx, fiber.StatusNotFound, "customer not found")
+		return utils.SendError(ctx, fiber.StatusNotFound, "material not found")
 	}
 
-	return utils.SendSuccess(ctx, res, "customer retrieved successfully")
+	return utils.SendSuccess(ctx, res, "material retrieved successfully")
 }
 
 func (c *Controller) GetByUserID(ctx *fiber.Ctx) error {
@@ -116,7 +116,7 @@ func (c *Controller) GetByUserID(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, res, "user customers retrieved successfully")
+	return utils.SendSuccess(ctx, res, "user materials retrieved successfully")
 }
 
 func (c *Controller) Update(ctx *fiber.Ctx) error {
@@ -125,28 +125,28 @@ func (c *Controller) Update(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
 	}
 
-	var req UpdateCustomerRequest
+	var req UpdateMaterialRequest
 	if err := ctx.BodyParser(&req); err != nil {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	var avatarURL string
-	file, err := ctx.FormFile("avatar")
+	var imageURL string
+	file, err := ctx.FormFile("image")
 	if err == nil {
 		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
 		path := filepath.Join("uploads", filename)
 		if err := ctx.SaveFile(file, path); err != nil {
-			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save avatar")
+			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save image")
 		}
-		avatarURL = fmt.Sprintf("uploads/%s", filename)
+		imageURL = fmt.Sprintf("uploads/%s", filename)
 	}
 
-	customerRes, err := c.service.Update(id, req, avatarURL)
+	res, err := c.service.Update(id, req, imageURL)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, customerRes, "customer updated successfully")
+	return utils.SendSuccess(ctx, res, "material updated successfully")
 }
 
 func (c *Controller) Delete(ctx *fiber.Ctx) error {
@@ -159,11 +159,10 @@ func (c *Controller) Delete(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, nil, "customer deleted successfully")
+	return utils.SendSuccess(ctx, nil, "material deleted successfully")
 }
 
 func getUserIDFromToken(ctx *fiber.Ctx) (string, error) {
-	// Inspect how middleware stores user
 	userToken := ctx.Locals("user")
 	if userToken == nil {
 		return "", fmt.Errorf("no user in context")
@@ -180,13 +179,10 @@ func getUserIDFromToken(ctx *fiber.Ctx) (string, error) {
 	}
 	log.Println(claims)
 
-	// Handle float64 (from JSON) or string
 	switch v := claims["user_id"].(type) {
 	case string:
 		return v, nil
 	case float64:
-		// Attempt to convert to int then string, but if it expects UUID this is bad.
-		// However, for standard int IDs this works.
 		return fmt.Sprintf("%.0f", v), nil
 	default:
 		return "", fmt.Errorf("invalid user_id type in token")

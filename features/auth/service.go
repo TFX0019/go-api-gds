@@ -16,6 +16,7 @@ type Service interface {
 	VerifyEmail(token string) error
 	RefreshToken(tokenString string) (string, error)
 	ForgotPassword(req ForgotPasswordRequest) error
+	VerifyCode(req VerifyCodeRequest) error
 	ResetPassword(req ResetPasswordRequest) error
 }
 
@@ -41,6 +42,7 @@ func (s *service) Register(req RegisterRequest) error {
 	verificationToken := uuid.New().String()
 
 	user := &User{
+		Name:              req.Name,
 		Email:             req.Email,
 		Password:          hashedPassword,
 		VerificationToken: verificationToken,
@@ -76,6 +78,7 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 
 	userResponse := &UserResponse{
 		ID:        user.ID,
+		Name:      user.Name,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -142,6 +145,19 @@ func (s *service) ForgotPassword(req ForgotPasswordRequest) error {
 	return nil
 }
 
+func (s *service) VerifyCode(req VerifyCodeRequest) error {
+	user, err := s.repo.FindByEmail(req.Email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if user.ResetCode != req.Code || time.Now().After(user.ResetCodeExpiry) {
+		return errors.New("invalid or expired reset code")
+	}
+
+	return nil
+}
+
 func (s *service) ResetPassword(req ResetPasswordRequest) error {
 	user, err := s.repo.FindByEmail(req.Email)
 	if err != nil {
@@ -150,6 +166,10 @@ func (s *service) ResetPassword(req ResetPasswordRequest) error {
 
 	if user.ResetCode != req.Code || time.Now().After(user.ResetCodeExpiry) {
 		return errors.New("invalid or expired reset code")
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		return errors.New("passwords do not match")
 	}
 
 	hashed, err := utils.HashPassword(req.NewPassword)

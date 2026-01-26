@@ -36,11 +36,12 @@ func (c *Controller) Create(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	if err := c.service.Create(userID, req); err != nil {
+	productRes, err := c.service.Create(userID, req)
+	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendCreated(ctx, nil, "product created successfully")
+	return utils.SendCreated(ctx, productRes, "product created successfully")
 }
 
 func (c *Controller) GetAll(ctx *fiber.Ctx) error {
@@ -79,9 +80,9 @@ func (c *Controller) GetByID(ctx *fiber.Ctx) error {
 }
 
 func (c *Controller) GetByUserID(ctx *fiber.Ctx) error {
-	userID := ctx.Params("userID")
-	if userID == "" {
-		return utils.SendError(ctx, fiber.StatusBadRequest, "user id required")
+	userID, err := getUserIDFromToken(ctx)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
 	}
 
 	var query PaginationQuery
@@ -115,11 +116,12 @@ func (c *Controller) Update(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	if err := c.service.Update(id, req); err != nil {
+	productRes, err := c.service.Update(id, req)
+	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, nil, "product updated successfully")
+	return utils.SendSuccess(ctx, productRes, "product updated successfully")
 }
 
 func (c *Controller) Delete(ctx *fiber.Ctx) error {
