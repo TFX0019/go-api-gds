@@ -12,4 +12,5 @@ func RegisterRoutes(app *fiber.App, controller *Controller) {
 	route.Post("/forgot-password", controller.ForgotPassword)
 	route.Post("/verify-code", controller.VerifyCode)
 	route.Post("/reset-password", controller.ResetPassword)
+	route.Post("/test-email", controller.TestResendEmail)
 }

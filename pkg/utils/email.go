@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/TFX0019/api-go-gds/pkg/config"
+	"github.com/resend/resend-go/v3"
 )
 
 func GenerateSixDigitCode() string {
@@ -90,4 +91,28 @@ func SendRecoveryEmail(email, code string) {
 	log.Printf("SUBJECT: Password Recovery")
 	log.Printf("BODY: Your recovery code is: %s", code)
 	log.Printf("----------------------------------------------------------------")
+}
+
+func SendTestEmail(toEmail string) error {
+	apiKey := config.GetEnv("RESEND_API_KEY", "")
+	if apiKey == "" {
+		return fmt.Errorf("RESEND_API_KEY is not set")
+	}
+
+	client := resend.NewClient(apiKey)
+
+	params := &resend.SendEmailRequest{
+		From:    "Acme <noreply@patronesparacostura.com>",
+		To:      []string{toEmail},
+		Html:    "<strong>hello world</strong>",
+		Subject: "Hello from Golang",
+	}
+
+	sent, err := client.Emails.Send(params)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Test Email Sent. ID: %s", sent.Id)
+	return nil
 }

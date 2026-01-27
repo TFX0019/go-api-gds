@@ -14,6 +14,7 @@ type Customer struct {
 	Phone            string    `gorm:"type:text"`
 	Email            string    `gorm:"type:text"`
 	UsesStandardSize bool      `gorm:"type:boolean;not null"`
+	StandardSize     string    `gorm:"type:text"`
 	Back             *float64  `gorm:"type:numeric"`
 	Neck             *float64  `gorm:"type:numeric"`
 	FrontSize        *float64  `gorm:"type:numeric"`

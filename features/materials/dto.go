@@ -1,15 +1,17 @@
 package materials
 
 type CreateMaterialRequest struct {
-	Name  string  `form:"name" validate:"required"`
-	Price float64 `form:"price" validate:"required,gte=0"`
-	Unit  string  `form:"unit" validate:"required"`
+	Name     string  `form:"name" validate:"required"`
+	Price    float64 `form:"price" validate:"required,gte=0"`
+	Quantity float64 `form:"quantity" validate:"gte=0"`
+	Unit     string  `form:"unit" validate:"required"`
 }
 
 type UpdateMaterialRequest struct {
-	Name  string  `form:"name"`
-	Price float64 `form:"price" validate:"gte=0"`
-	Unit  string  `form:"unit"`
+	Name     string  `form:"name"`
+	Price    float64 `form:"price" validate:"gte=0"`
+	Quantity float64 `form:"quantity" validate:"gte=0"`
+	Unit     string  `form:"unit"`
 }
 
 type PaginationQuery struct {
@@ -22,6 +24,7 @@ type MaterialResponse struct {
 	UserID    string  `json:"user_id"`
 	Name      string  `json:"name"`
 	Price     float64 `json:"price"`
+	Quantity  float64 `json:"quantity"`
 	Unit      string  `json:"unit"`
 	ImageURL  string  `json:"image_url"`
 	CreatedAt string  `json:"created_at"`

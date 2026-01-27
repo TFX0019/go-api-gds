@@ -36,6 +36,7 @@ func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL str
 		Phone:            req.Phone,
 		Email:            req.Email,
 		UsesStandardSize: req.UsesStandardSize,
+		StandardSize:     req.StandardSize,
 		Back:             req.Back,
 		Neck:             req.Neck,
 		FrontSize:        req.FrontSize,
@@ -121,6 +122,7 @@ func (s *service) Update(id string, req UpdateCustomerRequest, avatarURL string)
 	customer.Phone = req.Phone
 	customer.Email = req.Email
 	customer.UsesStandardSize = req.UsesStandardSize
+	customer.StandardSize = req.StandardSize
 	customer.Back = req.Back
 	customer.Neck = req.Neck
 	customer.FrontSize = req.FrontSize
@@ -162,6 +164,7 @@ func mapToResponse(c Customer) CustomerResponse {
 		Phone:            c.Phone,
 		Email:            c.Email,
 		UsesStandardSize: c.UsesStandardSize,
+		StandardSize:     c.StandardSize,
 		Back:             c.Back,
 		Neck:             c.Neck,
 		FrontSize:        c.FrontSize,

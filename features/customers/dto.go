@@ -5,6 +5,7 @@ type CreateCustomerRequest struct {
 	Phone            string   `form:"phone"`
 	Email            string   `form:"email" validate:"omitempty,email"`
 	UsesStandardSize bool     `form:"uses_standard_size"`
+	StandardSize     string   `form:"standard_size"`
 	Back             *float64 `form:"back"`
 	Neck             *float64 `form:"neck"`
 	FrontSize        *float64 `form:"front_size"`
@@ -27,6 +28,7 @@ type UpdateCustomerRequest struct {
 	Phone            string   `form:"phone"`
 	Email            string   `form:"email" validate:"omitempty,email"`
 	UsesStandardSize bool     `form:"uses_standard_size"`
+	StandardSize     string   `form:"standard_size"`
 	Back             *float64 `form:"back"`
 	Neck             *float64 `form:"neck"`
 	FrontSize        *float64 `form:"front_size"`
@@ -57,6 +59,7 @@ type CustomerResponse struct {
 	Phone            string   `json:"phone"`
 	Email            string   `json:"email"`
 	UsesStandardSize bool     `json:"uses_standard_size"`
+	StandardSize     string   `json:"standard_size"`
 	Back             *float64 `json:"back"`
 	Neck             *float64 `json:"neck"`
 	FrontSize        *float64 `json:"front_size"`

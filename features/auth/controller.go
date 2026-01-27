@@ -139,3 +139,23 @@ func (c *Controller) ResetPassword(ctx *fiber.Ctx) error {
 
 	return utils.SendSuccess(ctx, nil, "password reset successful")
 }
+
+func (c *Controller) TestResendEmail(ctx *fiber.Ctx) error {
+	type TestEmailRequest struct {
+		Email string `json:"email"`
+	}
+	var req TestEmailRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if req.Email == "" {
+		req.Email = "delivered@resend.dev" // Default for testing
+	}
+
+	if err := utils.SendTestEmail(req.Email); err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "test email sent")
+}

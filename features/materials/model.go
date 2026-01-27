@@ -11,6 +11,7 @@ type Material struct {
 	UserID    uint      `gorm:"not null"`
 	Name      string    `gorm:"type:text;not null"`
 	Price     float64   `gorm:"type:numeric;not null"`
+	Quantity  float64   `gorm:"type:numeric;default:0"`
 	Unit      string    `gorm:"type:text;not null"`
 	ImageURL  string    `gorm:"type:text"`
 	CreatedAt time.Time `gorm:"not null;default:now()"`

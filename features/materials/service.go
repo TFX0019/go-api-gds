@@ -33,6 +33,7 @@ func (s *service) Create(userID string, req CreateMaterialRequest, imageURL stri
 		UserID:   uint(uid),
 		Name:     req.Name,
 		Price:    req.Price,
+		Quantity: req.Quantity,
 		Unit:     req.Unit,
 		ImageURL: imageURL,
 	}
@@ -123,6 +124,7 @@ func (s *service) Update(id string, req UpdateMaterialRequest, imageURL string) 
 	}
 	// Price is tricky if 0 is valid. I'll update it for now.
 	material.Price = req.Price
+	material.Quantity = req.Quantity
 
 	if imageURL != "" {
 		material.ImageURL = imageURL
@@ -146,6 +148,7 @@ func mapToResponse(m Material) MaterialResponse {
 		UserID:    fmt.Sprintf("%d", m.UserID),
 		Name:      m.Name,
 		Price:     m.Price,
+		Quantity:  m.Quantity,
 		Unit:      m.Unit,
 		ImageURL:  m.ImageURL,
 		CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
