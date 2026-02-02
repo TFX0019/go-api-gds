@@ -40,11 +40,13 @@ func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL str
 		return nil, errors.New("user not found")
 	}
 
-	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+	productID := user.Subscription.ProductID
+	if productID == "" {
+		productID = "free_tier"
+	}
+
+	plan, err := s.plansRepo.FindByProductID(productID)
 	if err != nil {
-		// Fallback to free tier or error?
-		// If plan not found (e.g. data inconsistency), assume strict or strict defaults?
-		// Logic: If subscription exists, plan SHOULD exist.
 		return nil, errors.New("plan not found")
 	}
 

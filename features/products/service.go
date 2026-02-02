@@ -41,7 +41,12 @@ func (s *service) Create(userID string, req CreateProductRequest) (*ProductRespo
 		return nil, errors.New("user not found")
 	}
 
-	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+	productID := user.Subscription.ProductID
+	if productID == "" {
+		productID = "free_tier"
+	}
+
+	plan, err := s.plansRepo.FindByProductID(productID)
 	if err != nil {
 		return nil, errors.New("plan not found")
 	}
