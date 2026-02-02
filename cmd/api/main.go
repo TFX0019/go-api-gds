@@ -8,8 +8,11 @@ import (
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/customers"
 	"github.com/TFX0019/api-go-gds/features/materials"
+	"github.com/TFX0019/api-go-gds/features/plans"
 	"github.com/TFX0019/api-go-gds/features/products"
+	"github.com/TFX0019/api-go-gds/features/subscriptions"
 	"github.com/TFX0019/api-go-gds/features/tasks"
+	"github.com/TFX0019/api-go-gds/features/wallets"
 	"github.com/TFX0019/api-go-gds/pkg/config"
 	"github.com/TFX0019/api-go-gds/pkg/database"
 	"github.com/gofiber/fiber/v2"
@@ -27,8 +30,29 @@ func main() {
 	// 3. Migrations
 	// Migrate Auth models
 	// Migrate Auth models
-	if err := database.DB.AutoMigrate(&auth.User{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &plans.Plan{}); err != nil {
 		log.Fatal("Migration failed: ", err)
+	}
+
+	// Seed Free Tier Plan
+	var freePlan plans.Plan
+	if err := database.DB.Where("product_id = ?", "free_tier").First(&freePlan).Error; err != nil {
+		freePlan = plans.Plan{
+			ProductID:    "free_tier",
+			Title:        "Free Tier",
+			Description:  "Starter plan for new users",
+			Price:        0,
+			Benefits:     []string{"20 Customer Limit", "20 Product Limit", "20 Material Limit", "20 Task Limit"},
+			MaxCustomers: 20,
+			MaxProducts:  20,
+			MaxMaterials: 20,
+			MaxTasks:     20,
+		}
+		if err := database.DB.Create(&freePlan).Error; err != nil {
+			log.Printf("Failed to seed free plan: %v", err)
+		} else {
+			log.Println("Seeded 'free_tier' plan")
+		}
 	}
 
 	// Ensure uploads directory exists
@@ -43,21 +67,24 @@ func main() {
 	app.Static("/uploads", "./uploads")
 
 	// 5. Setup Features
+	// Plans Feature
+	plansRepo := plans.NewRepository(database.DB)
+
 	// Auth Feature
 	authRepo := auth.NewRepository(database.DB)
-	authService := auth.NewService(authRepo)
+	authService := auth.NewService(authRepo, plansRepo)
 	authController := auth.NewController(authService)
 	auth.RegisterRoutes(app, authController)
 
 	// Customers Feature
 	customersRepo := customers.NewRepository(database.DB)
-	customersService := customers.NewService(customersRepo)
+	customersService := customers.NewService(customersRepo, authRepo, plansRepo)
 	customersController := customers.NewController(customersService)
 	customers.RegisterRoutes(app, customersController)
 
 	// Products Feature
 	productsRepo := products.NewRepository(database.DB)
-	productsService := products.NewService(productsRepo)
+	productsService := products.NewService(productsRepo, authRepo, plansRepo)
 	productsController := products.NewController(productsService)
 	products.RegisterRoutes(app, productsController)
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/TFX0019/api-go-gds/features/auth"
+	"github.com/TFX0019/api-go-gds/features/plans"
 	"github.com/google/uuid"
 )
 
@@ -18,17 +20,40 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo      Repository
+	authRepo  auth.Repository
+	plansRepo plans.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, authRepo auth.Repository, plansRepo plans.Repository) Service {
+	return &service{repo: repo, authRepo: authRepo, plansRepo: plansRepo}
 }
 
 func (s *service) Create(userID string, req CreateProductRequest) (*ProductResponse, error) {
 	uid, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
 		return nil, errors.New("invalid user id")
+	}
+
+	// Check Limits
+	user, err := s.authRepo.FindByID(uint(uid))
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+	if err != nil {
+		return nil, errors.New("plan not found")
+	}
+
+	if plan.MaxProducts != -1 {
+		count, err := s.repo.CountByUserID(uint(uid))
+		if err != nil {
+			return nil, err
+		}
+		if int(count) >= plan.MaxProducts {
+			return nil, fmt.Errorf("product limit reached for your plan (%d)", plan.MaxProducts)
+		}
 	}
 
 	var clientUUID *uuid.UUID

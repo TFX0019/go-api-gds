@@ -1,6 +1,9 @@
 package auth
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/TFX0019/api-go-gds/pkg/middleware"
+	"github.com/gofiber/fiber/v2"
+)
 
 func RegisterRoutes(app *fiber.App, controller *Controller) {
 	route := app.Group("/api/auth")
@@ -13,4 +16,6 @@ func RegisterRoutes(app *fiber.App, controller *Controller) {
 	route.Post("/verify-code", controller.VerifyCode)
 	route.Post("/reset-password", controller.ResetPassword)
 	route.Post("/test-email", controller.TestResendEmail)
+	route.Patch("/avatar", middleware.Protected(), controller.UpdateAvatar)
+	route.Patch("/name", middleware.Protected(), controller.UpdateName)
 }

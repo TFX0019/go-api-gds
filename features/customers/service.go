@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"github.com/TFX0019/api-go-gds/features/auth"
+	"github.com/TFX0019/api-go-gds/features/plans"
 )
 
 type Service interface {
@@ -16,17 +19,43 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo      Repository
+	authRepo  auth.Repository
+	plansRepo plans.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, authRepo auth.Repository, plansRepo plans.Repository) Service {
+	return &service{repo: repo, authRepo: authRepo, plansRepo: plansRepo}
 }
 
 func (s *service) Create(userID string, req CreateCustomerRequest, avatarURL string) (*CustomerResponse, error) {
 	uid, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
 		return nil, errors.New("invalid user id")
+	}
+
+	// Check Limits
+	user, err := s.authRepo.FindByID(uint(uid))
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+	if err != nil {
+		// Fallback to free tier or error?
+		// If plan not found (e.g. data inconsistency), assume strict or strict defaults?
+		// Logic: If subscription exists, plan SHOULD exist.
+		return nil, errors.New("plan not found")
+	}
+
+	if plan.MaxCustomers != -1 {
+		count, err := s.repo.CountByUserID(uint(uid))
+		if err != nil {
+			return nil, err
+		}
+		if int(count) >= plan.MaxCustomers {
+			return nil, fmt.Errorf("customer limit reached for your plan (%d)", plan.MaxCustomers)
+		}
 	}
 
 	customer := &Customer{

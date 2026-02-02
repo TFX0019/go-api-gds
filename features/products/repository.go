@@ -7,6 +7,7 @@ type Repository interface {
 	FindAll(limit, offset int) ([]Product, int64, error)
 	FindByID(id string) (*Product, error)
 	FindByUserID(userID string, limit, offset int) ([]Product, int64, error)
+	CountByUserID(userID uint) (int64, error)
 	Update(product *Product) error
 	Delete(id string) error
 }
@@ -64,6 +65,12 @@ func (r *repository) FindByUserID(userID string, limit, offset int) ([]Product, 
 	}
 
 	return products, total, nil
+}
+
+func (r *repository) CountByUserID(userID uint) (int64, error) {
+	var total int64
+	err := r.db.Model(&Product{}).Where("user_id = ?", userID).Count(&total).Error
+	return total, err
 }
 
 func (r *repository) Update(product *Product) error {

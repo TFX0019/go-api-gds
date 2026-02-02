@@ -4,6 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/TFX0019/api-go-gds/features/plans"
+	"github.com/TFX0019/api-go-gds/features/subscriptions"
+	"github.com/TFX0019/api-go-gds/features/wallets"
 	"github.com/TFX0019/api-go-gds/pkg/config"
 	"github.com/TFX0019/api-go-gds/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,14 +21,17 @@ type Service interface {
 	ForgotPassword(req ForgotPasswordRequest) error
 	VerifyCode(req VerifyCodeRequest) error
 	ResetPassword(req ResetPasswordRequest) error
+	UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, error)
+	UpdateName(userID uint, name string) (*UserResponse, error)
 }
 
 type service struct {
-	repo Repository
+	repo      Repository
+	plansRepo plans.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, plansRepo plans.Repository) Service {
+	return &service{repo: repo, plansRepo: plansRepo}
 }
 
 func (s *service) Register(req RegisterRequest) error {
@@ -47,6 +53,15 @@ func (s *service) Register(req RegisterRequest) error {
 		Password:          hashedPassword,
 		VerificationToken: verificationToken,
 		IsVerified:        false,
+		Wallet: wallets.Wallet{
+			Balance:      30,
+			LastRefillAt: time.Now(),
+		},
+		Subscription: subscriptions.Subscription{
+			Status:    subscriptions.SubscriptionStatusExpired, // Start as expired or add a free trial status if needed
+			ExpiresAt: time.Now(),                              // Expired immediately
+			ProductID: "free_tier",                             // Placeholder
+		},
 	}
 
 	if err := s.repo.CreateUser(user); err != nil {
@@ -76,12 +91,40 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 		return "", "", nil, err
 	}
 
+	// Determine if user is Pro
+	isPro := false
+	planName := "Free Tier"
+	maxCustomers := 20
+	maxProducts := 20
+	maxMaterials := 20
+	maxTasks := 20
+
+	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+	if err == nil && plan != nil {
+		maxCustomers = plan.MaxCustomers
+		maxProducts = plan.MaxProducts
+		maxMaterials = plan.MaxMaterials
+		maxTasks = plan.MaxTasks
+	}
+
+	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
+		isPro = true
+		// In a real scenario, you might fetch plan details or just use ProductID
+		planName = user.Subscription.ProductID
+	}
+
 	userResponse := &UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		IsPro:        isPro,
+		Plan:         planName,
+		MaxCustomers: maxCustomers,
+		MaxProducts:  maxProducts,
+		MaxMaterials: maxMaterials,
+		MaxTasks:     maxTasks,
 	}
 
 	return accessToken, refreshToken, userResponse, nil
@@ -182,4 +225,48 @@ func (s *service) ResetPassword(req ResetPasswordRequest) error {
 	user.ResetCodeExpiry = time.Time{}
 
 	return s.repo.UpdateUser(user)
+}
+
+func (s *service) UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, error) {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	user.Avatar = avatarPath
+
+	if err := s.repo.UpdateUser(user); err != nil {
+		return nil, err
+	}
+
+	return &UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Avatar:    user.Avatar,
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}, nil
+}
+
+func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	user.Name = name
+
+	if err := s.repo.UpdateUser(user); err != nil {
+		return nil, err
+	}
+
+	return &UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Avatar:    user.Avatar,
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}, nil
 }

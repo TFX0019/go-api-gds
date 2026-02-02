@@ -7,6 +7,7 @@ import (
 type Repository interface {
 	CreateUser(user *User) error
 	FindByEmail(email string) (*User, error)
+	FindByID(id uint) (*User, error)
 	FindVerifyToken(token string) (*User, error)
 	UpdateUser(user *User) error
 }
@@ -25,7 +26,16 @@ func (r *repository) CreateUser(user *User) error {
 
 func (r *repository) FindByEmail(email string) (*User, error) {
 	var user User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.Preload("Subscription").Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *repository) FindByID(id uint) (*User, error) {
+	var user User
+	err := r.db.First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
