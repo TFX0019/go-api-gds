@@ -24,6 +24,7 @@ const (
 	TransactionTypeImageGeneration     TransactionType = "image_generation"
 )
 
+// TODO: add payment gateway integration
 type CreditTransaction struct {
 	ID          uint            `gorm:"primarykey" json:"id"`
 	UserID      uint            `gorm:"not null;index"`
