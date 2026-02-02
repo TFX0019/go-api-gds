@@ -35,7 +35,7 @@ func (r *repository) FindByEmail(email string) (*User, error) {
 
 func (r *repository) FindByID(id uint) (*User, error) {
 	var user User
-	err := r.db.First(&user, id).Error
+	err := r.db.Preload("Subscription").First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
