@@ -91,7 +91,7 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 		return "", "", nil, err
 	}
 
-	// Determine if user is Pro
+	// Logic to populate limits
 	isPro := false
 	planName := "Free Tier"
 	maxCustomers := 20
@@ -99,17 +99,27 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 	maxMaterials := 20
 	maxTasks := 20
 
-	plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
-	if err == nil && plan != nil {
-		maxCustomers = plan.MaxCustomers
-		maxProducts = plan.MaxProducts
-		maxMaterials = plan.MaxMaterials
-		maxTasks = plan.MaxTasks
+	if user.Subscription.ProductID != "" {
+		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
+	} else {
+		// Fallback for empty product ID
+		plan, err := s.plansRepo.FindByProductID("free_tier")
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
 	}
 
 	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
 		isPro = true
-		// In a real scenario, you might fetch plan details or just use ProductID
 		planName = user.Subscription.ProductID
 	}
 
@@ -117,6 +127,7 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 		ID:           user.ID,
 		Name:         user.Name,
 		Email:        user.Email,
+		Avatar:       user.Avatar,
 		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
 		IsPro:        isPro,
@@ -239,13 +250,51 @@ func (s *service) UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, 
 		return nil, err
 	}
 
+	// Logic to populate limits (duplicate from Login, should be refactored)
+	isPro := false
+	planName := "Free Tier"
+	maxCustomers := 20
+	maxProducts := 20
+	maxMaterials := 20
+	maxTasks := 20
+
+	if user.Subscription.ProductID != "" {
+		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
+	} else {
+		// Fallback for empty product ID
+		plan, err := s.plansRepo.FindByProductID("free_tier")
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
+	}
+
+	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
+		isPro = true
+		planName = user.Subscription.ProductID
+	}
+
 	return &UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Avatar:    user.Avatar,
-		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		Avatar:       user.Avatar, // Avatar is a pointer, if nil it stays nil in JSON
+		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		IsPro:        isPro,
+		Plan:         planName,
+		MaxCustomers: maxCustomers,
+		MaxProducts:  maxProducts,
+		MaxMaterials: maxMaterials,
+		MaxTasks:     maxTasks,
 	}, nil
 }
 
@@ -261,12 +310,50 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 		return nil, err
 	}
 
+	// Logic to populate limits (duplicate from Login, should be refactored)
+	isPro := false
+	planName := "Free Tier"
+	maxCustomers := 20
+	maxProducts := 20
+	maxMaterials := 20
+	maxTasks := 20
+
+	if user.Subscription.ProductID != "" {
+		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
+	} else {
+		// Fallback for empty product ID
+		plan, err := s.plansRepo.FindByProductID("free_tier")
+		if err == nil && plan != nil {
+			maxCustomers = plan.MaxCustomers
+			maxProducts = plan.MaxProducts
+			maxMaterials = plan.MaxMaterials
+			maxTasks = plan.MaxTasks
+		}
+	}
+
+	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
+		isPro = true
+		planName = user.Subscription.ProductID
+	}
+
 	return &UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Avatar:    user.Avatar,
-		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		Avatar:       user.Avatar,
+		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		IsPro:        isPro,
+		Plan:         planName,
+		MaxCustomers: maxCustomers,
+		MaxProducts:  maxProducts,
+		MaxMaterials: maxMaterials,
+		MaxTasks:     maxTasks,
 	}, nil
 }
