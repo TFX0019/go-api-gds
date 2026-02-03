@@ -116,3 +116,31 @@ func SendTestEmail(toEmail string) error {
 	log.Printf("Test Email Sent. ID: %s", sent.Id)
 	return nil
 }
+
+func SendVerificationCode(email, code string) error {
+	apiKey := config.GetEnv("RESEND_API_KEY", "")
+	if apiKey == "" {
+		// Fallback to logging if no API key
+		log.Printf("[RESEND_MISSING] Verification Code for %s: %s", email, code)
+		return nil
+	}
+
+	client := resend.NewClient(apiKey)
+	from := config.GetEnv("RESEND_FROM", "noreply@patronesparacostura.com")
+
+	params := &resend.SendEmailRequest{
+		From:    from,
+		To:      []string{email},
+		Html:    fmt.Sprintf("<p>Your verification code is: <strong>%s</strong></p><p>This code expires in 2 minutes.</p>", code),
+		Subject: "Verify your account",
+	}
+
+	sent, err := client.Emails.Send(params)
+	if err != nil {
+		log.Printf("Error sending email with Resend: %v", err)
+		return err
+	}
+
+	log.Printf("Verification Code Email Sent to %s. ID: %s", email, sent.Id)
+	return nil
+}

@@ -30,7 +30,7 @@ func main() {
 	// 3. Migrations
 	// Migrate Auth models
 	// Migrate Auth models
-	if err := database.DB.AutoMigrate(&auth.User{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &plans.Plan{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &plans.Plan{}); err != nil {
 		log.Fatal("Migration failed: ", err)
 	}
 

@@ -37,7 +37,7 @@ func (c *Controller) Register(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return utils.SendCreated(ctx, nil, "registration successful, please verify your email")
+	return utils.SendCreated(ctx, nil, "registration successful, please check your email for verification code")
 }
 
 func (c *Controller) Login(ctx *fiber.Ctx) error {
@@ -60,6 +60,45 @@ func (c *Controller) Login(ctx *fiber.Ctx) error {
 		"refresh_token": refreshToken,
 		"user":          user,
 	}, "login successful")
+}
+
+func (c *Controller) ResendVerificationCode(ctx *fiber.Ctx) error {
+	var req ResendCodeRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.validate.Struct(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
+	}
+
+	if err := c.service.ResendVerificationCode(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "verification code sent")
+}
+
+func (c *Controller) VerifyAccount(ctx *fiber.Ctx) error {
+	var req VerifyAccountRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.validate.Struct(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
+	}
+
+	accessToken, refreshToken, user, err := c.service.VerifyAccount(req)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, fiber.Map{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"user":          user,
+	}, "account verified and logged in")
 }
 
 func (c *Controller) VerifyEmail(ctx *fiber.Ctx) error {
