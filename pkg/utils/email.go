@@ -144,3 +144,31 @@ func SendVerificationCode(email, code string) error {
 	log.Printf("Verification Code Email Sent to %s. ID: %s", email, sent.Id)
 	return nil
 }
+
+func SendRecoveryCode(email, code string) error {
+	apiKey := config.GetEnv("RESEND_API_KEY", "")
+	if apiKey == "" {
+		// Fallback to logging if no API key
+		log.Printf("[RESEND_MISSING] Recovery Code for %s: %s", email, code)
+		return nil
+	}
+
+	client := resend.NewClient(apiKey)
+	from := config.GetEnv("RESEND_FROM", "noreply@patronesparacostura.com")
+
+	params := &resend.SendEmailRequest{
+		From:    from,
+		To:      []string{email},
+		Html:    fmt.Sprintf("<p>Your password recovery code is: <strong>%s</strong></p><p>This code expires in 2 minutes.</p>", code),
+		Subject: "Reset your password",
+	}
+
+	sent, err := client.Emails.Send(params)
+	if err != nil {
+		log.Printf("Error sending email with Resend: %v", err)
+		return err
+	}
+
+	log.Printf("Recovery Code Email Sent to %s. ID: %s", email, sent.Id)
+	return nil
+}

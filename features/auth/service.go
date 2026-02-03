@@ -24,6 +24,7 @@ type Service interface {
 	UpdateName(userID uint, name string) (*UserResponse, error)
 	VerifyAccount(req VerifyAccountRequest) (string, string, *UserResponse, error)
 	ResendVerificationCode(req ResendCodeRequest) error
+	ResendResetCode(req ForgotPasswordRequest) error
 }
 
 type service struct {
@@ -309,14 +310,19 @@ func (s *service) ForgotPassword(req ForgotPasswordRequest) error {
 
 	code := utils.GenerateSixDigitCode()
 	user.ResetCode = code
-	user.ResetCodeExpiry = time.Now().Add(15 * time.Minute)
+	user.ResetCodeExpiry = time.Now().Add(2 * time.Minute)
 
 	if err := s.repo.UpdateUser(user); err != nil {
 		return err
 	}
 
-	utils.SendRecoveryEmail(user.Email, code)
+	utils.SendRecoveryCode(user.Email, code)
 	return nil
+}
+
+func (s *service) ResendResetCode(req ForgotPasswordRequest) error {
+	// Re-use logic
+	return s.ForgotPassword(req)
 }
 
 func (s *service) VerifyCode(req VerifyCodeRequest) error {
