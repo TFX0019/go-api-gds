@@ -1,9 +1,10 @@
 package auth
 
 type RegisterRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
+	Name            string `json:"name" validate:"required"`
+	Email           string `json:"email" validate:"required,email"`
+	Password        string `json:"password" validate:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,eqfield=Password"`
 }
 
 type LoginRequest struct {
@@ -16,6 +17,15 @@ type RefreshRequest struct {
 }
 
 type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type VerifyAccountRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required,len=6"`
+}
+
+type ResendCodeRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
 

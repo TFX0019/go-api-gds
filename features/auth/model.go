@@ -21,3 +21,10 @@ type User struct {
 	Wallet            wallets.Wallet             `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Subscription      subscriptions.Subscription `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
+
+type VerificationCode struct {
+	gorm.Model
+	Email     string    `gorm:"index;not null"`
+	Code      string    `gorm:"not null"`
+	ExpiresAt time.Time `gorm:"not null"`
+}

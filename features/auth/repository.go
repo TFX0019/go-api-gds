@@ -10,6 +10,9 @@ type Repository interface {
 	FindByID(id uint) (*User, error)
 	FindVerifyToken(token string) (*User, error)
 	UpdateUser(user *User) error
+	CreateVerificationCode(code *VerificationCode) error
+	FindVerificationCode(email, code string) (*VerificationCode, error)
+	DeleteVerificationCode(email string) error
 }
 
 type repository struct {
@@ -53,4 +56,21 @@ func (r *repository) FindVerifyToken(token string) (*User, error) {
 
 func (r *repository) UpdateUser(user *User) error {
 	return r.db.Save(user).Error
+}
+
+func (r *repository) CreateVerificationCode(code *VerificationCode) error {
+	return r.db.Create(code).Error
+}
+
+func (r *repository) FindVerificationCode(email, code string) (*VerificationCode, error) {
+	var vc VerificationCode
+	err := r.db.Where("email = ? AND code = ?", email, code).First(&vc).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vc, nil
+}
+
+func (r *repository) DeleteVerificationCode(email string) error {
+	return r.db.Where("email = ?", email).Delete(&VerificationCode{}).Error
 }
