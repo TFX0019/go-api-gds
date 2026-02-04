@@ -23,6 +23,8 @@ type Product struct {
 	BaseTotal            float64             `gorm:"type:numeric;not null"`
 	ProfitAmount         float64             `gorm:"type:numeric;not null"`
 	Total                float64             `gorm:"type:numeric;not null"`
+	Status               string              `gorm:"type:text;not null;default:'pending'"`
+	DatePaid             *time.Time          `gorm:"type:timestamp"`
 	CreatedAt            time.Time           `gorm:"not null;default:now()"`
 	UpdatedAt            time.Time           `gorm:"not null;default:now()"`
 }

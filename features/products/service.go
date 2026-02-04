@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/plans"
@@ -15,7 +16,9 @@ type Service interface {
 	GetAll(page, limit int) (*PaginatedResponse, error)
 	GetByID(id string) (*ProductResponse, error)
 	GetByUserID(userID string, page, limit int) (*PaginatedResponse, error)
+	GetProfitLoss(userID string, month int) (*ProfitLossResponse, error)
 	Update(id string, req UpdateProductRequest) (*ProductResponse, error)
+	UpdateStatus(id string, status string) (*ProductResponse, error)
 	Delete(id string) error
 }
 
@@ -84,6 +87,7 @@ func (s *service) Create(userID string, req CreateProductRequest) (*ProductRespo
 		BaseTotal:            req.BaseTotal,
 		ProfitAmount:         req.ProfitAmount,
 		Total:                req.Total,
+		Status:               "pending",
 	}
 
 	if err := s.repo.Create(product); err != nil {
@@ -148,6 +152,10 @@ func (s *service) GetByUserID(userID string, page, limit int) (*PaginatedRespons
 	}, nil
 }
 
+func (s *service) GetProfitLoss(userID string, month int) (*ProfitLossResponse, error) {
+	return s.repo.GetProfitLoss(userID, month)
+}
+
 func (s *service) Update(id string, req UpdateProductRequest) (*ProductResponse, error) {
 	product, err := s.repo.FindByID(id)
 	if err != nil {
@@ -169,18 +177,6 @@ func (s *service) Update(id string, req UpdateProductRequest) (*ProductResponse,
 	if req.Name != "" {
 		product.Name = req.Name
 	}
-	// For numeric values, need to know if they were provided (e.g. pointer in request or check non-zero?)
-	// But struct is values. Assuming full replace or only if non-zero?
-	// The prompt implies "update", typically existing values are kept if not provided.
-	// However, numbers can be 0.
-	// A simple approach is to always update if we trust the request has current/new values,
-	// or use pointers in UpdateRequest.
-	// Given the prompt didn't specify partial updates intricately, I'll update all fields from request
-	// assuming the UI sends the full object state or specific fields?
-	// Actually, usually PUT sends full resource, PATCH sends partial.
-	// The request is 'UpdateProductRequest' with value types.
-	// I'll update them blindly as typical Update logic often does with simple DTOs.
-	// IF the user sends 0, it becomes 0.
 
 	product.MaterialsCost = req.MaterialsCost
 	product.HoursCost = req.HoursCost
@@ -201,6 +197,28 @@ func (s *service) Update(id string, req UpdateProductRequest) (*ProductResponse,
 	return &res, nil
 }
 
+func (s *service) UpdateStatus(id string, status string) (*ProductResponse, error) {
+	product, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	product.Status = status
+	if status == "paid" {
+		now := time.Now()
+		product.DatePaid = &now
+	} else {
+		product.DatePaid = nil
+	}
+
+	if err := s.repo.Update(product); err != nil {
+		return nil, err
+	}
+
+	res := mapToResponse(*product)
+	return &res, nil
+}
+
 func (s *service) Delete(id string) error {
 	return s.repo.Delete(id)
 }
@@ -210,6 +228,12 @@ func mapToResponse(p Product) ProductResponse {
 	if p.ClientID != nil {
 		s := p.ClientID.String()
 		cid = &s
+	}
+
+	var datePaid *string
+	if p.DatePaid != nil {
+		s := p.DatePaid.Format("2006-01-02 15:04:05")
+		datePaid = &s
 	}
 
 	return ProductResponse{
@@ -227,6 +251,8 @@ func mapToResponse(p Product) ProductResponse {
 		BaseTotal:            p.BaseTotal,
 		ProfitAmount:         p.ProfitAmount,
 		Total:                p.Total,
+		Status:               p.Status,
+		DatePaid:             datePaid,
 		CreatedAt:            p.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:            p.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
