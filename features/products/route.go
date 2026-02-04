@@ -11,7 +11,9 @@ func RegisterRoutes(app fiber.Router, controller *Controller) {
 	route.Post("/", controller.Create)
 	route.Get("/", controller.GetAll)
 	route.Get("/user", controller.GetByUserID)
+	route.Get("/profit-loss", controller.GetProfitLoss)
 	route.Get("/:id", controller.GetByID)
 	route.Put("/:id", controller.Update)
+	route.Patch("/:id/status", controller.UpdateStatus)
 	route.Delete("/:id", controller.Delete)
 }

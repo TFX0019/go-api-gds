@@ -30,6 +30,10 @@ type UpdateProductRequest struct {
 	Total                float64 `json:"total" validate:"gte=0"`
 }
 
+type UpdateProductStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=pending in_process complete paid"`
+}
+
 type PaginationQuery struct {
 	Page  int `query:"page" validate:"min=1"`
 	Limit int `query:"limit" validate:"min=1,max=100"`
@@ -50,6 +54,8 @@ type ProductResponse struct {
 	BaseTotal            float64 `json:"base_total"`
 	ProfitAmount         float64 `json:"profit_amount"`
 	Total                float64 `json:"total"`
+	Status               string  `json:"status"`
+	DatePaid             *string `json:"date_paid"`
 	CreatedAt            string  `json:"created_at"`
 	UpdatedAt            string  `json:"updated_at"`
 }
@@ -59,4 +65,11 @@ type PaginatedResponse struct {
 	Total int64             `json:"total"`
 	Page  int               `json:"page"`
 	Limit int               `json:"limit"`
+}
+
+type ProfitLossResponse struct {
+	TotalMaterialsCost       float64 `json:"total_materials_cost"`
+	TotalHoursCost           float64 `json:"total_hours_cost"`
+	TotalFixedExpensesAmount float64 `json:"total_fixed_expenses_amount"`
+	TotalProfitAmount        float64 `json:"total_profit_amount"`
 }
