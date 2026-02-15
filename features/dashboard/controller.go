@@ -17,12 +17,12 @@ func NewController(service Service) *Controller {
 }
 
 func (c *Controller) GetSummary(ctx *fiber.Ctx) error {
-	userID, err := getUserIDFromToken(ctx)
+	_, err := getUserIDFromToken(ctx)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	summary, err := c.service.GetSummary(userID)
+	summary, err := c.service.GetSummary()
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}

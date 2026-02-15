@@ -9,7 +9,7 @@ import (
 )
 
 type Repository interface {
-	GetSummaryCounts(userID string) ([]SummaryItem, error)
+	GetSummaryCounts() ([]SummaryItem, error)
 }
 
 type repository struct {
@@ -20,29 +20,29 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) GetSummaryCounts(userID string) ([]SummaryItem, error) {
+func (r *repository) GetSummaryCounts() ([]SummaryItem, error) {
 	var customerCount int64
 	var taskCount int64
 	var materialCount int64
 	var productCount int64
 
-	// Count customers with user_id
-	if err := r.db.Model(&customers.Customer{}).Where("user_id = ?", userID).Count(&customerCount).Error; err != nil {
+	// Count all customers
+	if err := r.db.Model(&customers.Customer{}).Count(&customerCount).Error; err != nil {
 		return nil, err
 	}
 
-	// Count tasks with user_id
-	if err := r.db.Model(&tasks.Task{}).Where("user_id = ?", userID).Count(&taskCount).Error; err != nil {
+	// Count all tasks
+	if err := r.db.Model(&tasks.Task{}).Count(&taskCount).Error; err != nil {
 		return nil, err
 	}
 
-	// Count materials with user_id
-	if err := r.db.Model(&materials.Material{}).Where("user_id = ?", userID).Count(&materialCount).Error; err != nil {
+	// Count all materials
+	if err := r.db.Model(&materials.Material{}).Count(&materialCount).Error; err != nil {
 		return nil, err
 	}
 
-	// Count products with user_id
-	if err := r.db.Model(&products.Product{}).Where("user_id = ?", userID).Count(&productCount).Error; err != nil {
+	// Count all products
+	if err := r.db.Model(&products.Product{}).Count(&productCount).Error; err != nil {
 		return nil, err
 	}
 
