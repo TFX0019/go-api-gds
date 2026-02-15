@@ -14,7 +14,7 @@ import (
 
 type Service interface {
 	Register(req RegisterRequest) error
-	Login(req LoginRequest) (string, string, *UserResponse, error)
+	Login(req LoginRequest, ip, userAgent string) (string, string, *UserResponse, error)
 	VerifyEmail(token string) error
 	RefreshToken(tokenString string) (string, error)
 	ForgotPassword(req ForgotPasswordRequest) error
@@ -22,9 +22,10 @@ type Service interface {
 	ResetPassword(req ResetPasswordRequest) error
 	UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, error)
 	UpdateName(userID uint, name string) (*UserResponse, error)
-	VerifyAccount(req VerifyAccountRequest) (string, string, *UserResponse, error)
+	VerifyAccount(req VerifyAccountRequest, ip, userAgent string) (string, string, *UserResponse, error)
 	ResendVerificationCode(req ResendCodeRequest) error
 	ResendResetCode(req ForgotPasswordRequest) error
+	Logout(tokenString string) error
 }
 
 type service struct {
@@ -72,6 +73,14 @@ func (s *service) Register(req RegisterRequest) error {
 		return err
 	}
 
+	// Find default role
+	memberRole, err := s.repo.FindRoleByName("member")
+	var roles []Role
+	if err == nil && memberRole != nil {
+		roles = append(roles, *memberRole)
+	}
+	// If role not found, we proceed without roles (or could handle error)
+
 	user := &User{
 		Name:       req.Name,
 		Email:      req.Email,
@@ -86,6 +95,7 @@ func (s *service) Register(req RegisterRequest) error {
 			ExpiresAt: time.Now(),
 			ProductID: "free_tier",
 		},
+		Roles: roles,
 	}
 
 	if err := s.repo.CreateUser(user); err != nil {
@@ -95,7 +105,7 @@ func (s *service) Register(req RegisterRequest) error {
 	return s.generateAndSendCode(req.Email)
 }
 
-func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error) {
+func (s *service) Login(req LoginRequest, ip, userAgent string) (string, string, *UserResponse, error) {
 	user, err := s.repo.FindByEmail(req.Email)
 	if err != nil {
 		return "", "", nil, errors.New("invalid credentials")
@@ -109,56 +119,41 @@ func (s *service) Login(req LoginRequest) (string, string, *UserResponse, error)
 		return "", "", nil, errors.New("please verify your email first")
 	}
 
-	accessToken, refreshToken, err := utils.GenerateTokens(user.ID)
+	if !user.IsActive {
+		return "", "", nil, errors.New("your account has been banned or deactivated")
+	}
+
+	return s.createSessionAndResponse(user, ip, userAgent)
+}
+
+func (s *service) createSessionAndResponse(user *User, ip, userAgent string) (string, string, *UserResponse, error) {
+	var roles []string
+	for _, r := range user.Roles {
+		roles = append(roles, r.Name)
+	}
+
+	accessToken, refreshToken, err := utils.GenerateTokens(user.ID, roles)
 	if err != nil {
 		return "", "", nil, err
 	}
 
-	// Logic to populate limits
-	isPro := false
-	planName := "Free Tier"
-	maxCustomers := 20
-	maxProducts := 20
-	maxMaterials := 20
-	maxTasks := 20
-
-	if user.Subscription.ProductID != "" {
-		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	} else {
-		// Fallback for empty product ID
-		plan, err := s.plansRepo.FindByProductID("free_tier")
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
+	// Create Session
+	session := &Session{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(time.Hour * 24 * 7), // Match refresh token expiry
+		IPAddress: ip,
+		UserAgent: userAgent,
+		IsValid:   true,
 	}
 
-	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
-		isPro = true
-		planName = user.Subscription.ProductID
+	if err := s.repo.CreateSession(session); err != nil {
+		return "", "", nil, err
 	}
 
-	userResponse := &UserResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		Avatar:       user.Avatar,
-		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
-		IsPro:        isPro,
-		Plan:         planName,
-		MaxCustomers: maxCustomers,
-		MaxProducts:  maxProducts,
-		MaxMaterials: maxMaterials,
-		MaxTasks:     maxTasks,
+	userResponse, err := s.buildUserResponse(user)
+	if err != nil {
+		return "", "", nil, err
 	}
 
 	return accessToken, refreshToken, userResponse, nil
@@ -175,7 +170,7 @@ func (s *service) VerifyEmail(token string) error {
 	return s.repo.UpdateUser(user)
 }
 
-func (s *service) VerifyAccount(req VerifyAccountRequest) (string, string, *UserResponse, error) {
+func (s *service) VerifyAccount(req VerifyAccountRequest, ip, userAgent string) (string, string, *UserResponse, error) {
 	// Find code
 	vc, err := s.repo.FindVerificationCode(req.Email, req.Code)
 	if err != nil {
@@ -201,62 +196,9 @@ func (s *service) VerifyAccount(req VerifyAccountRequest) (string, string, *User
 	// Delete code
 	if err := s.repo.DeleteVerificationCode(req.Email); err != nil {
 		// Just log error, don't fail flow
-		// In production use a logger
 	}
 
-	// Login logic (generate tokens)
-	accessToken, refreshToken, err := utils.GenerateTokens(user.ID)
-	if err != nil {
-		return "", "", nil, err
-	}
-
-	// Populate response (reuse logic from Login/UpdateAvatar or duplicate for now)
-	isPro := false
-	planName := "Free Tier"
-	maxCustomers := 20
-	maxProducts := 20
-	maxMaterials := 20
-	maxTasks := 20
-
-	if user.Subscription.ProductID != "" {
-		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	} else {
-		plan, err := s.plansRepo.FindByProductID("free_tier")
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	}
-
-	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
-		isPro = true
-		planName = user.Subscription.ProductID
-	}
-
-	userResponse := &UserResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		Avatar:       user.Avatar,
-		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
-		IsPro:        isPro,
-		Plan:         planName,
-		MaxCustomers: maxCustomers,
-		MaxProducts:  maxProducts,
-		MaxMaterials: maxMaterials,
-		MaxTasks:     maxTasks,
-	}
-
-	return accessToken, refreshToken, userResponse, nil
+	return s.createSessionAndResponse(user, ip, userAgent)
 }
 
 func (s *service) ResendVerificationCode(req ResendCodeRequest) error {
@@ -274,32 +216,40 @@ func (s *service) ResendVerificationCode(req ResendCodeRequest) error {
 }
 
 func (s *service) RefreshToken(tokenString string) (string, error) {
-	secret := config.GetEnv("JWT_REFRESH_SECRET", "refresh_secret")
-	token, err := utils.ValidateToken(tokenString, secret)
-	if err != nil || !token.Valid {
-		return "", errors.New("invalid refresh token")
+	// 1. Verify against DB Session
+	session, err := s.repo.FindSessionByToken(tokenString)
+	if err != nil {
+		return "", errors.New("invalid or expired session")
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", errors.New("invalid token claims")
+	if !session.IsValid || time.Now().After(session.ExpiresAt) {
+		return "", errors.New("session expired or revoked")
 	}
 
-	userIDFloat, ok := claims["user_id"].(float64)
-	if !ok {
-		return "", errors.New("invalid user id in token")
+	// Fetch user to get current roles
+	user, err := s.repo.FindByID(session.UserID)
+	if err != nil {
+		return "", errors.New("user not found")
 	}
-	userID := uint(userIDFloat)
 
-	// In a strict implementation, check if user exists or if token version matches
-	// For now, generate new access token
+	var roles []string
+	for _, r := range user.Roles {
+		roles = append(roles, r.Name)
+	}
+
+	// Generate new access token
 	accessSecret := config.GetEnv("JWT_ACCESS_SECRET", "access_secret")
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
+		"user_id": session.UserID,
+		"roles":   roles,
 		"exp":     time.Now().Add(time.Minute * 15).Unix(),
 	})
 
 	return accessToken.SignedString([]byte(accessSecret))
+}
+
+func (s *service) Logout(tokenString string) error {
+	return s.repo.RevokeSession(tokenString)
 }
 
 func (s *service) ForgotPassword(req ForgotPasswordRequest) error {
@@ -376,52 +326,7 @@ func (s *service) UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, 
 		return nil, err
 	}
 
-	// Logic to populate limits (duplicate from Login, should be refactored)
-	isPro := false
-	planName := "Free Tier"
-	maxCustomers := 20
-	maxProducts := 20
-	maxMaterials := 20
-	maxTasks := 20
-
-	if user.Subscription.ProductID != "" {
-		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	} else {
-		// Fallback for empty product ID
-		plan, err := s.plansRepo.FindByProductID("free_tier")
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	}
-
-	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
-		isPro = true
-		planName = user.Subscription.ProductID
-	}
-
-	return &UserResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		Avatar:       user.Avatar, // Avatar is a pointer, if nil it stays nil in JSON
-		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
-		IsPro:        isPro,
-		Plan:         planName,
-		MaxCustomers: maxCustomers,
-		MaxProducts:  maxProducts,
-		MaxMaterials: maxMaterials,
-		MaxTasks:     maxTasks,
-	}, nil
+	return s.buildUserResponse(user)
 }
 
 func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
@@ -436,7 +341,30 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 		return nil, err
 	}
 
-	// Logic to populate limits (duplicate from Login, should be refactored)
+	return s.buildUserResponse(user)
+}
+
+func (s *service) generateAndSendCode(email string) error {
+	if err := s.repo.DeleteVerificationCode(email); err != nil {
+		// Log error but continue
+	}
+
+	code := utils.GenerateSixDigitCode()
+	verificationCode := &VerificationCode{
+		Email:     email,
+		Code:      code,
+		ExpiresAt: time.Now().Add(2 * time.Minute),
+	}
+
+	if err := s.repo.CreateVerificationCode(verificationCode); err != nil {
+		return err
+	}
+
+	return utils.SendVerificationCode(email, code)
+}
+
+func (s *service) buildUserResponse(user *User) (*UserResponse, error) {
+	// Logic to populate limits
 	isPro := false
 	planName := "Free Tier"
 	maxCustomers := 20
@@ -453,7 +381,6 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 			maxTasks = plan.MaxTasks
 		}
 	} else {
-		// Fallback for empty product ID
 		plan, err := s.plansRepo.FindByProductID("free_tier")
 		if err == nil && plan != nil {
 			maxCustomers = plan.MaxCustomers
@@ -466,6 +393,11 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
 		isPro = true
 		planName = user.Subscription.ProductID
+	}
+
+	var roles []string
+	for _, r := range user.Roles {
+		roles = append(roles, r.Name)
 	}
 
 	return &UserResponse{
@@ -481,27 +413,6 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 		MaxProducts:  maxProducts,
 		MaxMaterials: maxMaterials,
 		MaxTasks:     maxTasks,
+		Roles:        roles,
 	}, nil
-}
-
-func (s *service) generateAndSendCode(email string) error {
-	// Delete existing codes
-	if err := s.repo.DeleteVerificationCode(email); err != nil {
-		// Log error but continue
-	}
-
-	// Generate new code
-	code := utils.GenerateSixDigitCode()
-	verificationCode := &VerificationCode{
-		Email:     email,
-		Code:      code,
-		ExpiresAt: time.Now().Add(2 * time.Minute),
-	}
-
-	if err := s.repo.CreateVerificationCode(verificationCode); err != nil {
-		return err
-	}
-
-	// Send email
-	return utils.SendVerificationCode(email, code)
 }

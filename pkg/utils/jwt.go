@@ -7,13 +7,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateTokens(userID uint) (string, string, error) {
+func GenerateTokens(userID uint, roles []string) (string, string, error) {
 	accessSecret := config.GetEnv("JWT_ACCESS_SECRET", "access_secret")
 	refreshSecret := config.GetEnv("JWT_REFRESH_SECRET", "refresh_secret")
 
 	// Access Token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
+		"roles":   roles,
 		"exp":     time.Now().Add(time.Minute * 15).Unix(),
 	})
 	accessString, err := accessToken.SignedString([]byte(accessSecret))

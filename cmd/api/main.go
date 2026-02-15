@@ -7,11 +7,13 @@ import (
 
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/customers"
+	"github.com/TFX0019/api-go-gds/features/dashboard"
 	"github.com/TFX0019/api-go-gds/features/materials"
 	"github.com/TFX0019/api-go-gds/features/plans"
 	"github.com/TFX0019/api-go-gds/features/products"
 	"github.com/TFX0019/api-go-gds/features/subscriptions"
 	"github.com/TFX0019/api-go-gds/features/tasks"
+	"github.com/TFX0019/api-go-gds/features/user"
 	"github.com/TFX0019/api-go-gds/features/wallets"
 	"github.com/TFX0019/api-go-gds/pkg/config"
 	"github.com/TFX0019/api-go-gds/pkg/database"
@@ -30,8 +32,17 @@ func main() {
 	// 3. Migrations
 	// Migrate Auth models
 	// Migrate Auth models
-	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &plans.Plan{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &plans.Plan{}); err != nil {
 		log.Fatal("Migration failed: ", err)
+	}
+
+	// Seed Roles
+	var roles = []string{"admin", "member"}
+	for _, roleName := range roles {
+		var role auth.Role
+		if err := database.DB.FirstOrCreate(&role, auth.Role{Name: roleName}).Error; err != nil {
+			log.Printf("Failed to seed role %s: %v", roleName, err)
+		}
 	}
 
 	// Seed Free Tier Plan
@@ -99,6 +110,18 @@ func main() {
 	tasksService := tasks.NewService(tasksRepo)
 	tasksController := tasks.NewController(tasksService)
 	tasks.RegisterRoutes(app, tasksController)
+
+	// Plans Feature Routes
+	plans.RegisterRoutes(app, database.DB)
+
+	// User Feature
+	user.RegisterRoutes(app, database.DB)
+
+	// Dashboard Feature
+	dashboardRepo := dashboard.NewRepository(database.DB)
+	dashboardService := dashboard.NewService(dashboardRepo)
+	dashboardController := dashboard.NewController(dashboardService)
+	dashboard.RegisterRoutes(app, dashboardController)
 
 	// 6. Start Server
 	port := config.GetEnv("PORT", "3000")
