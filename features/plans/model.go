@@ -15,6 +15,7 @@ type Plan struct {
 	MaxProducts  int       `gorm:"not null;default:20" json:"max_products"`  // -1 for unlimited
 	MaxMaterials int       `gorm:"not null;default:20" json:"max_materials"` // -1 for unlimited
 	MaxTasks     int       `gorm:"not null;default:20" json:"max_tasks"`     // -1 for unlimited
+	IsActive     bool      `gorm:"default:true" json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

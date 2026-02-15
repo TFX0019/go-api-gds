@@ -13,6 +13,10 @@ type Repository interface {
 	CreateVerificationCode(code *VerificationCode) error
 	FindVerificationCode(email, code string) (*VerificationCode, error)
 	DeleteVerificationCode(email string) error
+	CreateSession(session *Session) error
+	FindSessionByToken(token string) (*Session, error)
+	RevokeSession(token string) error
+	FindRoleByName(name string) (*Role, error)
 }
 
 type repository struct {
@@ -29,7 +33,7 @@ func (r *repository) CreateUser(user *User) error {
 
 func (r *repository) FindByEmail(email string) (*User, error) {
 	var user User
-	err := r.db.Preload("Subscription").Where("email = ?", email).First(&user).Error
+	err := r.db.Preload("Subscription").Preload("Roles").Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +42,7 @@ func (r *repository) FindByEmail(email string) (*User, error) {
 
 func (r *repository) FindByID(id uint) (*User, error) {
 	var user User
-	err := r.db.Preload("Subscription").First(&user, id).Error
+	err := r.db.Preload("Subscription").Preload("Roles").First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -73,4 +77,30 @@ func (r *repository) FindVerificationCode(email, code string) (*VerificationCode
 
 func (r *repository) DeleteVerificationCode(email string) error {
 	return r.db.Where("email = ?", email).Delete(&VerificationCode{}).Error
+}
+
+func (r *repository) CreateSession(session *Session) error {
+	return r.db.Create(session).Error
+}
+
+func (r *repository) FindSessionByToken(token string) (*Session, error) {
+	var session Session
+	err := r.db.Where("token = ? AND is_valid = ?", token, true).First(&session).Error
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (r *repository) RevokeSession(token string) error {
+	return r.db.Model(&Session{}).Where("token = ?", token).Update("is_valid", false).Error
+}
+
+func (r *repository) FindRoleByName(name string) (*Role, error) {
+	var role Role
+	err := r.db.Where("name = ?", name).First(&role).Error
+	if err != nil {
+		return nil, err
+	}
+	return &role, nil
 }

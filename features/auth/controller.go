@@ -50,7 +50,10 @@ func (c *Controller) Login(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	accessToken, refreshToken, user, err := c.service.Login(req)
+	ip := ctx.IP()
+	userAgent := ctx.Get("User-Agent")
+
+	accessToken, refreshToken, user, err := c.service.Login(req, ip, userAgent)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusUnauthorized, err.Error())
 	}
@@ -60,6 +63,22 @@ func (c *Controller) Login(ctx *fiber.Ctx) error {
 		"refresh_token": refreshToken,
 		"user":          user,
 	}, "login successful")
+}
+
+func (c *Controller) Logout(ctx *fiber.Ctx) error {
+	type LogoutRequest struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+	var req LogoutRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.service.Logout(req.RefreshToken); err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "logout successful")
 }
 
 func (c *Controller) ResendVerificationCode(ctx *fiber.Ctx) error {
@@ -89,7 +108,10 @@ func (c *Controller) VerifyAccount(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	accessToken, refreshToken, user, err := c.service.VerifyAccount(req)
+	ip := ctx.IP()
+	userAgent := ctx.Get("User-Agent")
+
+	accessToken, refreshToken, user, err := c.service.VerifyAccount(req, ip, userAgent)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusBadRequest, err.Error())
 	}

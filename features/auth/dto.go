@@ -46,16 +46,17 @@ type UpdateNameRequest struct {
 }
 
 type UserResponse struct {
-	ID           uint    `json:"id"`
-	Name         string  `json:"name"`
-	Email        string  `json:"email"`
-	CreatedAt    string  `json:"created_at"`
-	UpdatedAt    string  `json:"updated_at"`
-	Avatar       *string `json:"avatar"`
-	IsPro        bool    `json:"is_pro"`
-	Plan         string  `json:"plan"`
-	MaxCustomers int     `json:"max_customers"`
-	MaxProducts  int     `json:"max_products"`
-	MaxMaterials int     `json:"max_materials"`
-	MaxTasks     int     `json:"max_tasks"`
+	ID           uint     `json:"id"`
+	Name         string   `json:"name"`
+	Email        string   `json:"email"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+	Avatar       *string  `json:"avatar"`
+	IsPro        bool     `json:"is_pro"`
+	Plan         string   `json:"plan"`
+	MaxCustomers int      `json:"max_customers"`
+	MaxProducts  int      `json:"max_products"`
+	MaxMaterials int      `json:"max_materials"`
+	MaxTasks     int      `json:"max_tasks"`
+	Roles        []string `json:"roles"`
 }
