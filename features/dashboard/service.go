@@ -1,7 +1,7 @@
 package dashboard
 
 type Service interface {
-	GetSummary(userID string) ([]SummaryItem, error)
+	GetSummary() ([]SummaryItem, error)
 }
 
 type service struct {
@@ -12,6 +12,6 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetSummary(userID string) ([]SummaryItem, error) {
-	return s.repo.GetSummaryCounts(userID)
+func (s *service) GetSummary() ([]SummaryItem, error) {
+	return s.repo.GetSummaryCounts()
 }
