@@ -11,7 +11,7 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 	service := NewService(repo)
 	controller := NewController(service)
 
-	plans := app.Group("/plans")
+	plans := app.Group("/api/plans")
 
 	// Public or Authenticated (User) routes
 	plans.Get("/active", controller.ListActive) // Public list of active plans
