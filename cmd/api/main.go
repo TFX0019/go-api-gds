@@ -117,6 +117,12 @@ func main() {
 	// User Feature
 	user.RegisterRoutes(app, database.DB)
 
+	// Subscriptions Feature
+	subscriptionsRepo := subscriptions.NewRepository(database.DB)
+	subscriptionsService := subscriptions.NewService(subscriptionsRepo)
+	subscriptionsController := subscriptions.NewController(subscriptionsService)
+	subscriptions.RegisterRoutes(app, subscriptionsController)
+
 	// Dashboard Feature
 	dashboardRepo := dashboard.NewRepository(database.DB)
 	dashboardService := dashboard.NewService(dashboardRepo)
