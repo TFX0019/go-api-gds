@@ -306,3 +306,29 @@ func (c *Controller) UpdateName(ctx *fiber.Ctx) error {
 
 	return utils.SendSuccess(ctx, user, "name updated successfully")
 }
+
+func (c *Controller) GetProfile(ctx *fiber.Ctx) error {
+	token, ok := ctx.Locals("user").(*jwt.Token)
+	if !ok {
+		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return utils.SendError(ctx, fiber.StatusUnauthorized, "unauthorized")
+	}
+	userID := uint(userIDFloat)
+
+	user, err := c.service.GetProfile(userID)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	// Just return the user directly since the user requested specifically this format (or we can use SendSuccess, but I'll return it as is)
+	return ctx.Status(fiber.StatusOK).JSON(user)
+}

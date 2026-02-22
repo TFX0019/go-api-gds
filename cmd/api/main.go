@@ -118,8 +118,9 @@ func main() {
 	user.RegisterRoutes(app, database.DB)
 
 	// Subscriptions Feature
+	walletsRepo := wallets.NewRepository(database.DB)
 	subscriptionsRepo := subscriptions.NewRepository(database.DB)
-	subscriptionsService := subscriptions.NewService(subscriptionsRepo)
+	subscriptionsService := subscriptions.NewService(subscriptionsRepo, walletsRepo)
 	subscriptionsController := subscriptions.NewController(subscriptionsService)
 	subscriptions.RegisterRoutes(app, subscriptionsController)
 
