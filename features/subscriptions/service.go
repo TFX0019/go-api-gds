@@ -8,6 +8,7 @@ import (
 
 type Service interface {
 	HandleRevenueCatWebhook(payload RevenueCatWebhook) error
+	ListTransactions() ([]TransactionResponse, error)
 }
 
 type service struct {
@@ -63,5 +64,32 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 		return err
 	}
 
+	// Save transaction log
+	txn := &Transaction{
+		UserID:                uint(userID),
+		RevenueCatID:          payload.Event.ID,
+		Type:                  eventType,
+		ProductID:             payload.Event.ProductID,
+		Store:                 payload.Event.Store,
+		Environment:           payload.Event.Environment,
+		Currency:              payload.Event.Currency,
+		Price:                 payload.Event.Price,
+		TransactionID:         payload.Event.TransactionID,
+		OriginalTransactionID: payload.Event.OriginalTransactionID,
+		EventTimestampMs:      payload.Event.EventTimestampMs,
+		PurchasedAtMs:         payload.Event.PurchasedAtMs,
+		ExpirationAtMs:        payload.Event.ExpirationAtMs,
+	}
+
+	err = s.repo.CreateTransaction(txn)
+	if err != nil {
+		log.Printf("[RevenueCat Webhook] Warning: could not log transaction for user %d: %v", userID, err)
+		// We still return nil since subscription upsert succeeded, this is just a log.
+	}
+
 	return nil
+}
+
+func (s *service) ListTransactions() ([]TransactionResponse, error) {
+	return s.repo.GetAllTransactions()
 }
