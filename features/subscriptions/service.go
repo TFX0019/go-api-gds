@@ -4,18 +4,23 @@ import (
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/TFX0019/api-go-gds/features/wallets"
+	"github.com/TFX0019/api-go-gds/pkg/config"
 )
 
 type Service interface {
 	HandleRevenueCatWebhook(payload RevenueCatWebhook) error
+	ListTransactions() ([]TransactionResponse, error)
 }
 
 type service struct {
-	repo Repository
+	repo        Repository
+	walletsRepo wallets.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo}
+func NewService(repo Repository, walletsRepo wallets.Repository) Service {
+	return &service{repo, walletsRepo}
 }
 
 func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
@@ -43,9 +48,9 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 
 	var expiresAt time.Time
 	if payload.Event.ExpirationAtMs > 0 {
-		expiresAt = time.UnixMilli(payload.Event.ExpirationAtMs)
+		expiresAt = time.UnixMilli(payload.Event.ExpirationAtMs).UTC()
 	} else {
-		expiresAt = time.Now().AddDate(1, 0, 0)
+		expiresAt = time.Now().UTC().AddDate(1, 0, 0)
 	}
 
 	// We might have an existing subscription.
@@ -63,5 +68,56 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 		return err
 	}
 
+	// Save transaction log
+	txn := &Transaction{
+		UserID:                uint(userID),
+		RevenueCatID:          payload.Event.ID,
+		Type:                  eventType,
+		ProductID:             payload.Event.ProductID,
+		Store:                 payload.Event.Store,
+		Environment:           payload.Event.Environment,
+		Currency:              payload.Event.Currency,
+		Price:                 payload.Event.Price,
+		TransactionID:         payload.Event.TransactionID,
+		OriginalTransactionID: payload.Event.OriginalTransactionID,
+		EventTimestampMs:      payload.Event.EventTimestampMs,
+		PurchasedAtMs:         payload.Event.PurchasedAtMs,
+		ExpirationAtMs:        payload.Event.ExpirationAtMs,
+	}
+
+	err = s.repo.CreateTransaction(txn)
+	if err != nil {
+		log.Printf("[RevenueCat Webhook] Warning: could not log transaction for user %d: %v", userID, err)
+		// We still return nil since subscription upsert succeeded, this is just a log.
+	}
+
+	// Add credits for purchase or renewal
+	if eventType == "INITIAL_PURCHASE" || eventType == "RENEWAL" {
+		creditsStr := config.GetEnv("ADD_CREDITS_SUBSCRIPTION", "100")
+		credits, _ := strconv.Atoi(creditsStr)
+		if credits == 0 {
+			credits = 100 // Default fallback
+		}
+
+		// Use the correct transaction type
+		var walletTxType wallets.TransactionType
+		if eventType == "INITIAL_PURCHASE" {
+			walletTxType = wallets.TransactionTypeSubscriptionUpgrade // or create a specific one
+		} else {
+			walletTxType = wallets.TransactionTypeSubscriptionRenewal
+		}
+
+		err = s.walletsRepo.AddCredits(uint(userID), credits, walletTxType, &payload.Event.ID)
+		if err != nil {
+			log.Printf("[RevenueCat Webhook] Error adding credits for user %d: %v", userID, err)
+			return err
+		}
+		log.Printf("[RevenueCat Webhook] Added %d credits to user %d", credits, userID)
+	}
+
 	return nil
+}
+
+func (s *service) ListTransactions() ([]TransactionResponse, error) {
+	return s.repo.GetAllTransactions()
 }

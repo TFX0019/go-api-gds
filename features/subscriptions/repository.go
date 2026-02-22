@@ -7,6 +7,8 @@ import (
 type Repository interface {
 	GetSubscriptionByUserID(userID uint) (*Subscription, error)
 	UpsertSubscription(sub *Subscription) error
+	CreateTransaction(t *Transaction) error
+	GetAllTransactions() ([]TransactionResponse, error)
 }
 
 type repository struct {
@@ -43,4 +45,18 @@ func (r *repository) UpsertSubscription(sub *Subscription) error {
 	sub.ID = existing.ID
 	sub.CreatedAt = existing.CreatedAt
 	return r.db.Save(sub).Error
+}
+
+func (r *repository) CreateTransaction(t *Transaction) error {
+	return r.db.Create(t).Error
+}
+
+func (r *repository) GetAllTransactions() ([]TransactionResponse, error) {
+	var results []TransactionResponse
+	err := r.db.Table("transactions").
+		Select("transactions.*, users.name as user_name, users.email as user_email").
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Order("transactions.created_at DESC").
+		Scan(&results).Error
+	return results, err
 }

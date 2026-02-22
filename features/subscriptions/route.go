@@ -10,4 +10,5 @@ func RegisterRoutes(app *fiber.App, controller *Controller) {
 
 	// Create the RevenueCat specific route
 	webhookGroup.Post("/revenuecat", controller.HandleWebhook)
+	webhookGroup.Get("/revenuecat/transactions", controller.GetTransactions)
 }

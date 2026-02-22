@@ -22,4 +22,5 @@ func RegisterRoutes(app *fiber.App, controller *Controller) {
 	route.Post("/logout", controller.Logout)
 	route.Patch("/avatar", middleware.Protected(), controller.UpdateAvatar)
 	route.Patch("/name", middleware.Protected(), controller.UpdateName)
+	route.Get("/profile", middleware.Protected(), controller.GetProfile)
 }

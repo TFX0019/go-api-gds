@@ -22,6 +22,7 @@ type Service interface {
 	ResetPassword(req ResetPasswordRequest) error
 	UpdateAvatar(userID uint, avatarPath *string) (*UserResponse, error)
 	UpdateName(userID uint, name string) (*UserResponse, error)
+	GetProfile(userID uint) (*UserResponse, error)
 	VerifyAccount(req VerifyAccountRequest, ip, userAgent string) (string, string, *UserResponse, error)
 	ResendVerificationCode(req ResendCodeRequest) error
 	ResendResetCode(req ForgotPasswordRequest) error
@@ -344,6 +345,15 @@ func (s *service) UpdateName(userID uint, name string) (*UserResponse, error) {
 	return s.buildUserResponse(user)
 }
 
+func (s *service) GetProfile(userID uint) (*UserResponse, error) {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return s.buildUserResponse(user)
+}
+
 func (s *service) generateAndSendCode(email string) error {
 	if err := s.repo.DeleteVerificationCode(email); err != nil {
 		// Log error but continue
@@ -390,9 +400,11 @@ func (s *service) buildUserResponse(user *User) (*UserResponse, error) {
 		}
 	}
 
-	if user.Subscription.Status == subscriptions.SubscriptionStatusActive && user.Subscription.ProductID != "free_tier" {
+	if time.Now().UTC().Before(user.Subscription.ExpiresAt.UTC()) {
 		isPro = true
-		planName = user.Subscription.ProductID
+		if user.Subscription.ProductID != "" && user.Subscription.ProductID != "free_tier" {
+			planName = user.Subscription.ProductID
+		}
 	}
 
 	var roles []string

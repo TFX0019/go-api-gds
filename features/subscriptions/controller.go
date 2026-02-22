@@ -35,3 +35,15 @@ func (c *Controller) HandleWebhook(ctx *fiber.Ctx) error {
 	// Always return 200 OK so RevenueCat knows we processed it, even if we ignored some malformed data inside the webhook
 	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
+
+func (c *Controller) GetTransactions(ctx *fiber.Ctx) error {
+	transactions, err := c.service.ListTransactions()
+	if err != nil {
+		log.Printf("[RevenueCat Webhook] Error fetching transactions: %v", err)
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch transactions",
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(transactions)
+}
