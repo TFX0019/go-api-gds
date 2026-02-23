@@ -53,11 +53,16 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 		expiresAt = time.Now().UTC().AddDate(1, 0, 0)
 	}
 
+	productID := payload.Event.ProductID
+	if eventType == "EXPIRATION" {
+		productID = "free_tier"
+	}
+
 	// We might have an existing subscription.
 	// Make sure we only check valid plans, or maybe we just store the product ID sent by RevenueCat.
 	sub := &Subscription{
 		UserID:    uint(userID),
-		ProductID: payload.Event.ProductID,
+		ProductID: productID,
 		Status:    status,
 		ExpiresAt: expiresAt,
 	}

@@ -382,22 +382,17 @@ func (s *service) buildUserResponse(user *User) (*UserResponse, error) {
 	maxMaterials := 20
 	maxTasks := 20
 
-	if user.Subscription.ProductID != "" {
-		plan, err := s.plansRepo.FindByProductID(user.Subscription.ProductID)
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
-	} else {
-		plan, err := s.plansRepo.FindByProductID("free_tier")
-		if err == nil && plan != nil {
-			maxCustomers = plan.MaxCustomers
-			maxProducts = plan.MaxProducts
-			maxMaterials = plan.MaxMaterials
-			maxTasks = plan.MaxTasks
-		}
+	activeProductID := "free_tier"
+	if time.Now().UTC().Before(user.Subscription.ExpiresAt.UTC()) && user.Subscription.ProductID != "" {
+		activeProductID = user.Subscription.ProductID
+	}
+
+	plan, err := s.plansRepo.FindByProductID(activeProductID)
+	if err == nil && plan != nil {
+		maxCustomers = plan.MaxCustomers
+		maxProducts = plan.MaxProducts
+		maxMaterials = plan.MaxMaterials
+		maxTasks = plan.MaxTasks
 	}
 
 	if time.Now().UTC().Before(user.Subscription.ExpiresAt.UTC()) {
