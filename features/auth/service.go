@@ -7,16 +7,14 @@ import (
 	"github.com/TFX0019/api-go-gds/features/plans"
 	"github.com/TFX0019/api-go-gds/features/subscriptions"
 	"github.com/TFX0019/api-go-gds/features/wallets"
-	"github.com/TFX0019/api-go-gds/pkg/config"
 	"github.com/TFX0019/api-go-gds/pkg/utils"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type Service interface {
 	Register(req RegisterRequest) error
 	Login(req LoginRequest, ip, userAgent string) (string, string, *UserResponse, error)
 	VerifyEmail(token string) error
-	RefreshToken(tokenString string) (string, error)
+	RefreshToken(tokenString string, ip, userAgent string) (string, string, error)
 	ForgotPassword(req ForgotPasswordRequest) error
 	VerifyCode(req VerifyCodeRequest) error
 	ResetPassword(req ResetPasswordRequest) error
@@ -142,7 +140,7 @@ func (s *service) createSessionAndResponse(user *User, ip, userAgent string) (st
 	session := &Session{
 		UserID:    user.ID,
 		Token:     refreshToken,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 7), // Match refresh token expiry
+		ExpiresAt: time.Now().Add(time.Hour * 24 * 30), // Match refresh token expiry
 		IPAddress: ip,
 		UserAgent: userAgent,
 		IsValid:   true,
@@ -216,21 +214,26 @@ func (s *service) ResendVerificationCode(req ResendCodeRequest) error {
 	return s.generateAndSendCode(req.Email)
 }
 
-func (s *service) RefreshToken(tokenString string) (string, error) {
+func (s *service) RefreshToken(tokenString string, ip, userAgent string) (string, string, error) {
 	// 1. Verify against DB Session
 	session, err := s.repo.FindSessionByToken(tokenString)
 	if err != nil {
-		return "", errors.New("invalid or expired session")
+		return "", "", errors.New("invalid or expired session")
 	}
 
 	if !session.IsValid || time.Now().After(session.ExpiresAt) {
-		return "", errors.New("session expired or revoked")
+		return "", "", errors.New("session expired or revoked")
+	}
+
+	// Revoke old session to support Refresh Token Rotation
+	if err := s.repo.RevokeSession(tokenString); err != nil {
+		return "", "", errors.New("failed to revoke old session")
 	}
 
 	// Fetch user to get current roles
 	user, err := s.repo.FindByID(session.UserID)
 	if err != nil {
-		return "", errors.New("user not found")
+		return "", "", errors.New("user not found")
 	}
 
 	var roles []string
@@ -238,15 +241,29 @@ func (s *service) RefreshToken(tokenString string) (string, error) {
 		roles = append(roles, r.Name)
 	}
 
-	// Generate new access token
-	accessSecret := config.GetEnv("JWT_ACCESS_SECRET", "access_secret")
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": session.UserID,
-		"roles":   roles,
-		"exp":     time.Now().Add(time.Minute * 15).Unix(),
-	})
+	// Generate both new tokens
+	accessToken, newRefreshToken, err := utils.GenerateTokens(user.ID, roles)
+	if err != nil {
+		return "", "", err
+	}
 
-	return accessToken.SignedString([]byte(accessSecret))
+	// Create new session for the new refresh token
+	newSession := &Session{
+		UserID:    user.ID,
+		Token:     newRefreshToken,
+		ExpiresAt: time.Now().Add(time.Hour * 24 * 30),
+		IPAddress: ip,
+		UserAgent: userAgent,
+		IsValid:   true,
+	}
+
+	if err := s.repo.CreateSession(newSession); err != nil {
+		// If we fail to create the session, the user will have to login again
+		// as their old session was already revoked
+		return "", "", err
+	}
+
+	return accessToken, newRefreshToken, nil
 }
 
 func (s *service) Logout(tokenString string) error {

@@ -146,12 +146,18 @@ func (c *Controller) RefreshToken(ctx *fiber.Ctx) error {
 		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
 	}
 
-	newAccess, err := c.service.RefreshToken(req.RefreshToken)
+	ip := ctx.IP()
+	userAgent := ctx.Get("User-Agent")
+
+	newAccess, newRefresh, err := c.service.RefreshToken(req.RefreshToken, ip, userAgent)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusUnauthorized, err.Error())
 	}
 
-	return utils.SendSuccess(ctx, fiber.Map{"access_token": newAccess}, "token refreshed")
+	return utils.SendSuccess(ctx, fiber.Map{
+		"access_token":  newAccess,
+		"refresh_token": newRefresh,
+	}, "token refreshed")
 }
 
 func (c *Controller) ForgotPassword(ctx *fiber.Ctx) error {
