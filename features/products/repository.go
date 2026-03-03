@@ -11,6 +11,10 @@ type Repository interface {
 	GetProfitLoss(userID string, month int) (*ProfitLossResponse, error)
 	Update(product *Product) error
 	Delete(id string) error
+	AddImage(image *ProductImage) error
+	DeleteImage(id string) error
+	CountImages(productID string) (int64, error)
+	GetImageByID(id string) (*ProductImage, error)
 }
 
 type repository struct {
@@ -34,7 +38,7 @@ func (r *repository) FindAll(limit, offset int) ([]Product, int64, error) {
 		return nil, 0, err
 	}
 
-	err = r.db.Limit(limit).Offset(offset).Order("created_at desc").Find(&products).Error
+	err = r.db.Preload("Images").Limit(limit).Offset(offset).Order("created_at desc").Find(&products).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -44,7 +48,7 @@ func (r *repository) FindAll(limit, offset int) ([]Product, int64, error) {
 
 func (r *repository) FindByID(id string) (*Product, error) {
 	var product Product
-	err := r.db.Where("id = ?", id).First(&product).Error
+	err := r.db.Preload("Images").Where("id = ?", id).First(&product).Error
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +64,7 @@ func (r *repository) FindByUserID(userID string, limit, offset int) ([]Product, 
 		return nil, 0, err
 	}
 
-	err = r.db.Where("user_id = ?", userID).Limit(limit).Offset(offset).Order("created_at desc").Find(&products).Error
+	err = r.db.Preload("Images").Where("user_id = ?", userID).Limit(limit).Offset(offset).Order("created_at desc").Find(&products).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -96,4 +100,27 @@ func (r *repository) Update(product *Product) error {
 
 func (r *repository) Delete(id string) error {
 	return r.db.Delete(&Product{}, "id = ?", id).Error
+}
+
+func (r *repository) AddImage(image *ProductImage) error {
+	return r.db.Create(image).Error
+}
+
+func (r *repository) DeleteImage(id string) error {
+	return r.db.Delete(&ProductImage{}, "id = ?", id).Error
+}
+
+func (r *repository) CountImages(productID string) (int64, error) {
+	var total int64
+	err := r.db.Model(&ProductImage{}).Where("product_id = ?", productID).Count(&total).Error
+	return total, err
+}
+
+func (r *repository) GetImageByID(id string) (*ProductImage, error) {
+	var image ProductImage
+	err := r.db.Where("id = ?", id).First(&image).Error
+	if err != nil {
+		return nil, err
+	}
+	return &image, nil
 }
