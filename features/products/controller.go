@@ -2,6 +2,7 @@ package products
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type Controller struct {
@@ -253,4 +255,58 @@ func getUserIDFromToken(ctx *fiber.Ctx) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid user_id type in token")
 	}
+}
+
+func (c *Controller) UploadImages(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	if id == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
+	}
+
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request or missing files")
+	}
+
+	files := form.File["images"]
+	if len(files) == 0 {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "no images provided")
+	}
+
+	if len(files) > 5 {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "maximum 5 images allowed per upload")
+	}
+
+	var paths []string
+	for _, file := range files {
+		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
+		path := filepath.Join("uploads", filename)
+		if err := ctx.SaveFile(file, path); err != nil {
+			return utils.SendError(ctx, fiber.StatusInternalServerError, "failed to save image")
+		}
+		paths = append(paths, fmt.Sprintf("uploads/%s", filename))
+	}
+
+	res, err := c.service.AddImages(id, paths)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, res, "images uploaded successfully")
+}
+
+func (c *Controller) DeleteImage(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	imageID := ctx.Params("image_id")
+	if id == "" || imageID == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "product id and image id required")
+	}
+
+	// We might also want to delete the file from the filesystem here, but the user requested an endpoint to delete them.
+	// Simple implementation is just to delete from DB to stop tracking it.
+	if err := c.service.DeleteImage(imageID, id); err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "image deleted successfully")
 }

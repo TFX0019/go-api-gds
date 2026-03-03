@@ -39,25 +39,33 @@ type PaginationQuery struct {
 	Limit int `query:"limit" validate:"min=1,max=100"`
 }
 
+type ProductImageResponse struct {
+	ID        string `json:"id"`
+	ProductID string `json:"product_id"`
+	Path      string `json:"path"`
+	CreatedAt string `json:"created_at"`
+}
+
 type ProductResponse struct {
-	ID                   string  `json:"id"`
-	UserID               string  `json:"user_id"`
-	Name                 string  `json:"name"`
-	ClientID             *string `json:"client_id,omitempty"`
-	MaterialsCost        float64 `json:"materials_cost"`
-	HoursCost            float64 `json:"hours_cost"`
-	ProfitPercentage     float64 `json:"profit_percentage"`
-	IncludeFixedExpenses bool    `json:"include_fixed_expenses"`
-	FixedExpenseRate     float64 `json:"fixed_expense_rate"`
-	Subtotal             float64 `json:"subtotal"`
-	FixedExpensesAmount  float64 `json:"fixed_expenses_amount"`
-	BaseTotal            float64 `json:"base_total"`
-	ProfitAmount         float64 `json:"profit_amount"`
-	Total                float64 `json:"total"`
-	Status               string  `json:"status"`
-	DatePaid             *string `json:"date_paid"`
-	CreatedAt            string  `json:"created_at"`
-	UpdatedAt            string  `json:"updated_at"`
+	ID                   string                 `json:"id"`
+	UserID               string                 `json:"user_id"`
+	Name                 string                 `json:"name"`
+	ClientID             *string                `json:"client_id,omitempty"`
+	MaterialsCost        float64                `json:"materials_cost"`
+	HoursCost            float64                `json:"hours_cost"`
+	ProfitPercentage     float64                `json:"profit_percentage"`
+	IncludeFixedExpenses bool                   `json:"include_fixed_expenses"`
+	FixedExpenseRate     float64                `json:"fixed_expense_rate"`
+	Subtotal             float64                `json:"subtotal"`
+	FixedExpensesAmount  float64                `json:"fixed_expenses_amount"`
+	BaseTotal            float64                `json:"base_total"`
+	ProfitAmount         float64                `json:"profit_amount"`
+	Total                float64                `json:"total"`
+	Status               string                 `json:"status"`
+	Images               []ProductImageResponse `json:"images"`
+	DatePaid             *string                `json:"date_paid"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
 }
 
 type PaginatedResponse struct {

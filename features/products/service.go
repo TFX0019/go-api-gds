@@ -3,6 +3,7 @@ package products
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -20,6 +21,8 @@ type Service interface {
 	Update(id string, req UpdateProductRequest) (*ProductResponse, error)
 	UpdateStatus(id string, status string) (*ProductResponse, error)
 	Delete(id string) error
+	AddImages(productID string, paths []string) ([]ProductImageResponse, error)
+	DeleteImage(imageID string, productID string) error
 }
 
 type service struct {
@@ -223,6 +226,60 @@ func (s *service) Delete(id string) error {
 	return s.repo.Delete(id)
 }
 
+func (s *service) AddImages(productID string, paths []string) ([]ProductImageResponse, error) {
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, errors.New("invalid product id")
+	}
+
+	currentCount, err := s.repo.CountImages(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	if int(currentCount)+len(paths) > 5 {
+		return nil, errors.New("maximum of 5 images allowed per product")
+	}
+
+	var responses []ProductImageResponse
+	for _, path := range paths {
+		image := &ProductImage{
+			ProductID: productUUID,
+			Path:      path,
+		}
+		if err := s.repo.AddImage(image); err != nil {
+			return nil, err
+		}
+		responses = append(responses, ProductImageResponse{
+			ID:        image.ID.String(),
+			ProductID: image.ProductID.String(),
+			Path:      image.Path,
+			CreatedAt: image.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	return responses, nil
+}
+
+func (s *service) DeleteImage(imageID string, productID string) error {
+	image, err := s.repo.GetImageByID(imageID)
+	if err != nil {
+		return err
+	}
+
+	if image.ProductID.String() != productID {
+		return errors.New("image does not belong to this product")
+	}
+
+	if err := s.repo.DeleteImage(imageID); err != nil {
+		return err
+	}
+
+	// Try to remove from filesystem
+	os.Remove(image.Path)
+
+	return nil
+}
+
 func mapToResponse(p Product) ProductResponse {
 	var cid *string
 	if p.ClientID != nil {
@@ -234,6 +291,16 @@ func mapToResponse(p Product) ProductResponse {
 	if p.DatePaid != nil {
 		s := p.DatePaid.Format("2006-01-02 15:04:05")
 		datePaid = &s
+	}
+
+	var images []ProductImageResponse
+	for _, img := range p.Images {
+		images = append(images, ProductImageResponse{
+			ID:        img.ID.String(),
+			ProductID: img.ProductID.String(),
+			Path:      img.Path,
+			CreatedAt: img.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
 	}
 
 	return ProductResponse{
@@ -252,6 +319,7 @@ func mapToResponse(p Product) ProductResponse {
 		ProfitAmount:         p.ProfitAmount,
 		Total:                p.Total,
 		Status:               p.Status,
+		Images:               images,
 		DatePaid:             datePaid,
 		CreatedAt:            p.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:            p.UpdatedAt.Format("2006-01-02 15:04:05"),

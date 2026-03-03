@@ -25,10 +25,22 @@ type Product struct {
 	Total                float64             `gorm:"type:numeric;not null"`
 	Status               string              `gorm:"type:text;not null;default:'pending'"`
 	DatePaid             *time.Time          `gorm:"type:timestamp"`
+	Images               []ProductImage      `gorm:"foreignKey:ProductID;constraint:OnDelete:CASCADE;"`
 	CreatedAt            time.Time           `gorm:"not null;default:now()"`
 	UpdatedAt            time.Time           `gorm:"not null;default:now()"`
 }
 
 func (Product) TableName() string {
 	return "products"
+}
+
+type ProductImage struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ProductID uuid.UUID `gorm:"type:uuid;not null"`
+	Path      string    `gorm:"type:text;not null"`
+	CreatedAt time.Time `gorm:"not null;default:now()"`
+}
+
+func (ProductImage) TableName() string {
+	return "product_images"
 }

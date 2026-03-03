@@ -16,4 +16,6 @@ func RegisterRoutes(app fiber.Router, controller *Controller) {
 	route.Put("/:id", controller.Update)
 	route.Patch("/:id/status", controller.UpdateStatus)
 	route.Delete("/:id", controller.Delete)
+	route.Post("/:id/images", controller.UploadImages)
+	route.Delete("/:id/images/:image_id", controller.DeleteImage)
 }
