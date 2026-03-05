@@ -25,3 +25,21 @@ type PaginatedAIGenerationResponse struct {
 	Page  int                    `json:"page"`
 	Limit int                    `json:"limit"`
 }
+
+type CreateAISuggestionRequest struct {
+	Prompt      string `json:"prompt" validate:"required"`
+	Description string `json:"description"`
+}
+
+type UpdateAISuggestionRequest struct {
+	Prompt      string `json:"prompt"`
+	Description string `json:"description"`
+}
+
+type AISuggestionResponse struct {
+	ID          string `json:"id"`
+	Prompt      string `json:"prompt"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}

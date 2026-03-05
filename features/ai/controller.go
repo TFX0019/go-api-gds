@@ -124,6 +124,67 @@ func (c *Controller) GetAllAdmin(ctx *fiber.Ctx) error {
 	return utils.SendSuccess(ctx, res, "all ai generations retrieved successfully")
 }
 
+// AI Suggestions Endpoints
+
+func (c *Controller) CreateSuggestion(ctx *fiber.Ctx) error {
+	var req CreateAISuggestionRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.validate.Struct(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
+	}
+
+	res, err := c.service.CreateSuggestion(req)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendCreated(ctx, res, "ai suggestion created successfully")
+}
+
+func (c *Controller) UpdateSuggestion(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	if id == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
+	}
+
+	var req UpdateAISuggestionRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	res, err := c.service.UpdateSuggestion(id, req)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, res, "ai suggestion updated successfully")
+}
+
+func (c *Controller) DeleteSuggestion(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	if id == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
+	}
+
+	if err := c.service.DeleteSuggestion(id); err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, nil, "ai suggestion deleted successfully")
+}
+
+func (c *Controller) GetAllSuggestions(ctx *fiber.Ctx) error {
+	res, err := c.service.GetAllSuggestions()
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, res, "ai suggestions retrieved successfully")
+}
+
 func getUserIDFromToken(ctx *fiber.Ctx) (uint, error) {
 	userToken := ctx.Locals("user")
 	if userToken == nil {

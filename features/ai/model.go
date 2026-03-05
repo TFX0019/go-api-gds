@@ -21,3 +21,15 @@ type AIGeneration struct {
 func (AIGeneration) TableName() string {
 	return "ai_generations"
 }
+
+type AISuggestion struct {
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Prompt      string    `gorm:"type:text;not null" json:"prompt"`
+	Description string    `gorm:"type:text" json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (AISuggestion) TableName() string {
+	return "ai_suggestions"
+}
