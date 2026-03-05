@@ -14,6 +14,12 @@ type Service interface {
 	UpdateGenerationResult(id string, userID uint, imageOutput string) (*AIGenerationResponse, error)
 	GetGenerationsByUserID(userID uint, page, limit int) (*PaginatedAIGenerationResponse, error)
 	GetAllGenerationsAdmin(page, limit int) (*PaginatedAIGenerationResponse, error)
+
+	// AISuggestions
+	CreateSuggestion(req CreateAISuggestionRequest) (*AISuggestionResponse, error)
+	UpdateSuggestion(id string, req UpdateAISuggestionRequest) (*AISuggestionResponse, error)
+	DeleteSuggestion(id string) error
+	GetAllSuggestions() ([]AISuggestionResponse, error)
 }
 
 type service struct {
@@ -132,5 +138,73 @@ func mapToResponse(g AIGeneration) AIGenerationResponse {
 		ImageOutput: g.ImageOutput,
 		CreatedAt:   g.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   g.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// AISuggestions Logic
+
+func (s *service) CreateSuggestion(req CreateAISuggestionRequest) (*AISuggestionResponse, error) {
+	suggestion := &AISuggestion{
+		Prompt:      req.Prompt,
+		Description: req.Description,
+	}
+
+	if err := s.repo.CreateSuggestion(suggestion); err != nil {
+		return nil, err
+	}
+
+	res := mapSuggestionToResponse(*suggestion)
+	return &res, nil
+}
+
+func (s *service) UpdateSuggestion(id string, req UpdateAISuggestionRequest) (*AISuggestionResponse, error) {
+	suggestion, err := s.repo.FindSuggestionByID(id)
+	if err != nil {
+		return nil, errors.New("suggestion not found")
+	}
+
+	if req.Prompt != "" {
+		suggestion.Prompt = req.Prompt
+	}
+	if req.Description != "" {
+		suggestion.Description = req.Description
+	}
+
+	if err := s.repo.UpdateSuggestion(suggestion); err != nil {
+		return nil, err
+	}
+
+	res := mapSuggestionToResponse(*suggestion)
+	return &res, nil
+}
+
+func (s *service) DeleteSuggestion(id string) error {
+	_, err := s.repo.FindSuggestionByID(id)
+	if err != nil {
+		return errors.New("suggestion not found")
+	}
+	return s.repo.DeleteSuggestion(id)
+}
+
+func (s *service) GetAllSuggestions() ([]AISuggestionResponse, error) {
+	suggestions, err := s.repo.FindAllSuggestions()
+	if err != nil {
+		return nil, err
+	}
+
+	var res []AISuggestionResponse
+	for _, sub := range suggestions {
+		res = append(res, mapSuggestionToResponse(sub))
+	}
+	return res, nil
+}
+
+func mapSuggestionToResponse(s AISuggestion) AISuggestionResponse {
+	return AISuggestionResponse{
+		ID:          s.ID.String(),
+		Prompt:      s.Prompt,
+		Description: s.Description,
+		CreatedAt:   s.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   s.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 }

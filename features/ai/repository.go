@@ -10,6 +10,13 @@ type Repository interface {
 	FindByID(id string) (*AIGeneration, error)
 	FindByUserID(userID uint, limit, offset int) ([]AIGeneration, int64, error)
 	FindAll(limit, offset int) ([]AIGeneration, int64, error)
+
+	// AISuggestions
+	CreateSuggestion(suggestion *AISuggestion) error
+	UpdateSuggestion(suggestion *AISuggestion) error
+	DeleteSuggestion(id string) error
+	FindSuggestionByID(id string) (*AISuggestion, error)
+	FindAllSuggestions() ([]AISuggestion, error)
 }
 
 type repository struct {
@@ -66,4 +73,32 @@ func (r *repository) FindAll(limit, offset int) ([]AIGeneration, int64, error) {
 	}
 
 	return gens, total, nil
+}
+
+func (r *repository) CreateSuggestion(suggestion *AISuggestion) error {
+	return r.db.Create(suggestion).Error
+}
+
+func (r *repository) UpdateSuggestion(suggestion *AISuggestion) error {
+	return r.db.Save(suggestion).Error
+}
+
+func (r *repository) DeleteSuggestion(id string) error {
+	return r.db.Delete(&AISuggestion{}, "id = ?", id).Error
+}
+
+func (r *repository) FindSuggestionByID(id string) (*AISuggestion, error) {
+	var sug AISuggestion
+	if err := r.db.First(&sug, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &sug, nil
+}
+
+func (r *repository) FindAllSuggestions() ([]AISuggestion, error) {
+	var sugs []AISuggestion
+	if err := r.db.Order("created_at desc").Find(&sugs).Error; err != nil {
+		return nil, err
+	}
+	return sugs, nil
 }
