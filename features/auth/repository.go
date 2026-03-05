@@ -33,7 +33,7 @@ func (r *repository) CreateUser(user *User) error {
 
 func (r *repository) FindByEmail(email string) (*User, error) {
 	var user User
-	err := r.db.Preload("Subscription").Preload("Roles").Where("email = ?", email).First(&user).Error
+	err := r.db.Preload("Subscription").Preload("Roles").Preload("Wallet").Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (r *repository) FindByEmail(email string) (*User, error) {
 
 func (r *repository) FindByID(id uint) (*User, error) {
 	var user User
-	err := r.db.Preload("Subscription").Preload("Roles").First(&user, id).Error
+	err := r.db.Preload("Subscription").Preload("Roles").Preload("Wallet").First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
