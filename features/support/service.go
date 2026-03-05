@@ -20,6 +20,7 @@ type Service interface {
 	GetAllParentSupportsAdmin(page, limit int) (*PaginatedSupportResponse, error)
 	GetRepliesByParentID(parentID string) ([]SupportResponse, error)
 	UpdateSupport(id string, req UpdateSupportRequest) (*SupportResponse, error)
+	ChangeSupportStatus(id string, status string) (*SupportResponse, error)
 	DeleteSupport(id string, reqUserID uint, isAdmin bool) error // Admin hard deletes or skips, User soft deletes
 }
 
@@ -212,6 +213,21 @@ func (s *service) UpdateSupport(id string, req UpdateSupportRequest) (*SupportRe
 		support.Status = *req.Status
 	}
 
+	if err := s.repo.UpdateSupport(support); err != nil {
+		return nil, err
+	}
+
+	res := mapSupportToResponse(*support)
+	return &res, nil
+}
+
+func (s *service) ChangeSupportStatus(id string, status string) (*SupportResponse, error) {
+	support, err := s.repo.FindSupportByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	support.Status = status
 	if err := s.repo.UpdateSupport(support); err != nil {
 		return nil, err
 	}

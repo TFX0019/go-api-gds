@@ -25,6 +25,10 @@ type UpdateSupportRequest struct {
 	Status            *string `json:"status" validate:"omitempty,oneof=open in_process closed"`
 }
 
+type ChangeSupportStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=open in_process closed"`
+}
+
 type PaginationQuery struct {
 	Page  int `query:"page" validate:"min=1"`
 	Limit int `query:"limit" validate:"min=1,max=100"`
