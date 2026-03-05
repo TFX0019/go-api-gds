@@ -212,6 +212,29 @@ func (c *Controller) UpdateSupport(ctx *fiber.Ctx) error {
 	return utils.SendSuccess(ctx, res, "support ticket updated successfully")
 }
 
+func (c *Controller) ChangeSupportStatus(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	if id == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "id required")
+	}
+
+	var req ChangeSupportStatusRequest
+	if err := ctx.BodyParser(&req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "invalid request body")
+	}
+
+	if err := c.validate.Struct(req); err != nil {
+		return utils.SendError(ctx, fiber.StatusBadRequest, utils.ParseValidationError(err))
+	}
+
+	res, err := c.service.ChangeSupportStatus(id, req.Status)
+	if err != nil {
+		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return utils.SendSuccess(ctx, res, "support ticket status updated successfully")
+}
+
 func (c *Controller) DeleteSupport(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	if id == "" {

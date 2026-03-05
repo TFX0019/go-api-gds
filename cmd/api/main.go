@@ -5,6 +5,7 @@ import (
 
 	"os"
 
+	"github.com/TFX0019/api-go-gds/features/ai"
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/customers"
 	"github.com/TFX0019/api-go-gds/features/dashboard"
@@ -32,8 +33,8 @@ func main() {
 
 	// 3. Migrations
 	// Migrate Auth models
-	// Migrate Auth models
-	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}); err != nil {
+	// Migrate models
+	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}, &ai.AIGeneration{}); err != nil {
 		log.Fatal("Migration failed: ", err)
 	}
 
@@ -136,6 +137,12 @@ func main() {
 	supportService := support.NewService(supportRepo)
 	supportController := support.NewController(supportService)
 	support.RegisterRoutes(app, supportController)
+
+	// AI Feature
+	aiRepo := ai.NewRepository(database.DB)
+	aiService := ai.NewService(aiRepo, walletsRepo)
+	aiController := ai.NewController(aiService)
+	ai.RegisterRoutes(app, aiController)
 
 	// 6. Start Server
 	port := config.GetEnv("PORT", "3000")

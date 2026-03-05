@@ -23,6 +23,7 @@ func RegisterRoutes(app fiber.Router, controller *Controller) {
 	supRoute.Get("/user", controller.GetUserSupports)
 	supRoute.Get("/:id/replies", controller.GetSupportReplies)
 	supRoute.Put("/:id", controller.UpdateSupport)
+	supRoute.Patch("/:id/status", controller.ChangeSupportStatus)
 	supRoute.Delete("/:id", controller.DeleteSupport)
 
 	// Admin only support routes
