@@ -425,18 +425,19 @@ func (s *service) buildUserResponse(user *User) (*UserResponse, error) {
 	}
 
 	return &UserResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		Avatar:       user.Avatar,
-		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
-		IsPro:        isPro,
-		Plan:         planName,
-		MaxCustomers: maxCustomers,
-		MaxProducts:  maxProducts,
-		MaxMaterials: maxMaterials,
-		MaxTasks:     maxTasks,
-		Roles:        roles,
+		ID:            user.ID,
+		Name:          user.Name,
+		Email:         user.Email,
+		Avatar:        user.Avatar,
+		CreatedAt:     user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:     user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		IsPro:         isPro,
+		Plan:          planName,
+		MaxCustomers:  maxCustomers,
+		MaxProducts:   maxProducts,
+		MaxMaterials:  maxMaterials,
+		MaxTasks:      maxTasks,
+		WalletBalance: float64(user.Wallet.Balance),
+		Roles:         roles,
 	}, nil
 }
