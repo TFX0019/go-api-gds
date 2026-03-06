@@ -11,7 +11,7 @@ import (
 
 type Service interface {
 	CreateGeneration(userID uint, prompt string, imageInput *string) (*AIGenerationResponse, error)
-	UpdateGenerationResult(id string, userID uint, imageOutput string) (*AIGenerationResponse, error)
+	UpdateGenerationResult(id string, userID uint, imageOutput string, responseText string) (*AIGenerationResponse, error)
 	GetGenerationsByUserID(userID uint, page, limit int) (*PaginatedAIGenerationResponse, error)
 	GetAllGenerationsAdmin(page, limit int) (*PaginatedAIGenerationResponse, error)
 
@@ -52,7 +52,7 @@ func (s *service) CreateGeneration(userID uint, prompt string, imageInput *strin
 	return &res, nil
 }
 
-func (s *service) UpdateGenerationResult(id string, userID uint, imageOutput string) (*AIGenerationResponse, error) {
+func (s *service) UpdateGenerationResult(id string, userID uint, imageOutput string, responseText string) (*AIGenerationResponse, error) {
 	generation, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, errors.New("generation not found")
@@ -62,11 +62,16 @@ func (s *service) UpdateGenerationResult(id string, userID uint, imageOutput str
 		return nil, errors.New("unauthorized to update this generation")
 	}
 
-	if generation.ImageOutput != nil {
+	if generation.ImageOutput != nil || generation.ResponseText != nil {
 		return nil, errors.New("this generation already has a result")
 	}
 
-	generation.ImageOutput = &imageOutput
+	if imageOutput != "" {
+		generation.ImageOutput = &imageOutput
+	}
+	if responseText != "" {
+		generation.ResponseText = &responseText
+	}
 	if err := s.repo.Update(generation); err != nil {
 		return nil, err
 	}
@@ -130,14 +135,15 @@ func (s *service) GetAllGenerationsAdmin(page, limit int) (*PaginatedAIGeneratio
 
 func mapToResponse(g AIGeneration) AIGenerationResponse {
 	return AIGenerationResponse{
-		ID:          g.ID.String(),
-		UserID:      g.UserID,
-		UserName:    g.User.Name,
-		Prompt:      g.Prompt,
-		ImageInput:  g.ImageInput,
-		ImageOutput: g.ImageOutput,
-		CreatedAt:   g.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   g.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:           g.ID.String(),
+		UserID:       g.UserID,
+		UserName:     g.User.Name,
+		Prompt:       g.Prompt,
+		ImageInput:   g.ImageInput,
+		ImageOutput:  g.ImageOutput,
+		ResponseText: g.ResponseText,
+		CreatedAt:    g.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    g.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 

@@ -70,6 +70,10 @@ func (c *Controller) UpdateResult(ctx *fiber.Ctx) error {
 	}
 
 	var imageOutput string
+	var responseText string
+
+	responseText = ctx.FormValue("response_text")
+
 	file, err := ctx.FormFile("image_output")
 	if err == nil {
 		filename := fmt.Sprintf("%s-%s", uuid.New().String(), file.Filename)
@@ -81,13 +85,21 @@ func (c *Controller) UpdateResult(ctx *fiber.Ctx) error {
 	} else {
 		// Try to get from body if not a file
 		var req UpdateAIGenerationResultRequest
-		if err := ctx.BodyParser(&req); err != nil || req.ImageOutput == "" {
-			return utils.SendError(ctx, fiber.StatusBadRequest, "image_output is required (file or path)")
+		if err := ctx.BodyParser(&req); err == nil {
+			if req.ImageOutput != "" {
+				imageOutput = req.ImageOutput
+			}
+			if req.ResponseText != "" {
+				responseText = req.ResponseText
+			}
 		}
-		imageOutput = req.ImageOutput
 	}
 
-	res, err := c.service.UpdateGenerationResult(id, userID, imageOutput)
+	if imageOutput == "" && responseText == "" {
+		return utils.SendError(ctx, fiber.StatusBadRequest, "image_output or response_text is required")
+	}
+
+	res, err := c.service.UpdateGenerationResult(id, userID, imageOutput, responseText)
 	if err != nil {
 		return utils.SendError(ctx, fiber.StatusInternalServerError, err.Error())
 	}
