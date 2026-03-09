@@ -11,7 +11,7 @@ import (
 
 type Service interface {
 	HandleRevenueCatWebhook(payload RevenueCatWebhook) error
-	ListTransactions() ([]TransactionResponse, error)
+	ListTransactions(page, limit int, search string) (*PaginatedTransactionResponse, error)
 }
 
 type service struct {
@@ -123,6 +123,17 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 	return nil
 }
 
-func (s *service) ListTransactions() ([]TransactionResponse, error) {
-	return s.repo.GetAllTransactions()
+func (s *service) ListTransactions(page, limit int, search string) (*PaginatedTransactionResponse, error) {
+	offset := (page - 1) * limit
+	transactions, total, err := s.repo.GetAllTransactions(limit, offset, search)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaginatedTransactionResponse{
+		Data:  transactions,
+		Total: total,
+		Page:  page,
+		Limit: limit,
+	}, nil
 }
