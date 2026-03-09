@@ -28,6 +28,7 @@ type TransactionResponse struct {
 	UserID                uint      `json:"user_id"`
 	UserName              string    `json:"user_name"`
 	UserEmail             string    `json:"user_email"`
+	PlanName              string    `json:"plan_name"`
 	RevenueCatID          string    `json:"revenuecat_id"`
 	Type                  string    `json:"type"`
 	ProductID             string    `json:"product_id"`
@@ -41,4 +42,11 @@ type TransactionResponse struct {
 	PurchasedAtMs         int64     `json:"purchased_at_ms"`
 	ExpirationAtMs        int64     `json:"expiration_at_ms"`
 	CreatedAt             time.Time `json:"created_at"`
+}
+
+type PaginatedTransactionResponse struct {
+	Data  []TransactionResponse `json:"data"`
+	Total int64                 `json:"total"`
+	Page  int                   `json:"page"`
+	Limit int                   `json:"limit"`
 }

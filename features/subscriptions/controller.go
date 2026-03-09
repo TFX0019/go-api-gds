@@ -37,9 +37,13 @@ func (c *Controller) HandleWebhook(ctx *fiber.Ctx) error {
 }
 
 func (c *Controller) GetTransactions(ctx *fiber.Ctx) error {
-	transactions, err := c.service.ListTransactions()
+	page := ctx.QueryInt("page", 1)
+	limit := ctx.QueryInt("limit", 10)
+	search := ctx.Query("search", "")
+
+	transactions, err := c.service.ListTransactions(page, limit, search)
 	if err != nil {
-		log.Printf("[RevenueCat Webhook] Error fetching transactions: %v", err)
+		log.Printf("[Subscriptions] Error fetching transactions: %v", err)
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch transactions",
 		})

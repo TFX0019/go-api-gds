@@ -7,8 +7,10 @@ import (
 
 	"github.com/TFX0019/api-go-gds/features/ai"
 	"github.com/TFX0019/api-go-gds/features/auth"
+	"github.com/TFX0019/api-go-gds/features/banners"
 	"github.com/TFX0019/api-go-gds/features/customers"
 	"github.com/TFX0019/api-go-gds/features/dashboard"
+	"github.com/TFX0019/api-go-gds/features/links"
 	"github.com/TFX0019/api-go-gds/features/materials"
 	"github.com/TFX0019/api-go-gds/features/plans"
 	"github.com/TFX0019/api-go-gds/features/products"
@@ -34,7 +36,7 @@ func main() {
 	// 3. Migrations
 	// Migrate Auth models
 	// Migrate models
-	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}, &ai.AIGeneration{}, &ai.AISuggestion{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}, &ai.AIGeneration{}, &ai.AISuggestion{}, &links.Link{}, &banners.Banner{}); err != nil {
 		log.Fatal("Migration failed: ", err)
 	}
 
@@ -143,6 +145,18 @@ func main() {
 	aiService := ai.NewService(aiRepo, walletsRepo)
 	aiController := ai.NewController(aiService)
 	ai.RegisterRoutes(app, aiController)
+
+	// Links Feature
+	linksRepo := links.NewRepository(database.DB)
+	linksService := links.NewService(linksRepo)
+	linksController := links.NewController(linksService)
+	links.RegisterRoutes(app, linksController)
+
+	// Banners Feature
+	bannersRepo := banners.NewRepository(database.DB)
+	bannersService := banners.NewService(bannersRepo)
+	bannersController := banners.NewController(bannersService)
+	banners.RegisterRoutes(app, bannersController)
 
 	// 6. Start Server
 	port := config.GetEnv("PORT", "3000")

@@ -8,7 +8,7 @@ type Repository interface {
 	GetSubscriptionByUserID(userID uint) (*Subscription, error)
 	UpsertSubscription(sub *Subscription) error
 	CreateTransaction(t *Transaction) error
-	GetAllTransactions() ([]TransactionResponse, error)
+	GetAllTransactions(limit, offset int, search string) ([]TransactionResponse, int64, error)
 }
 
 type repository struct {
@@ -51,12 +51,28 @@ func (r *repository) CreateTransaction(t *Transaction) error {
 	return r.db.Create(t).Error
 }
 
-func (r *repository) GetAllTransactions() ([]TransactionResponse, error) {
+func (r *repository) GetAllTransactions(limit, offset int, search string) ([]TransactionResponse, int64, error) {
 	var results []TransactionResponse
-	err := r.db.Table("transactions").
-		Select("transactions.*, users.name as user_name, users.email as user_email").
-		Joins("JOIN users ON transactions.user_id = users.id").
-		Order("transactions.created_at DESC").
+	var total int64
+
+	query := r.db.Table("transactions").
+		Select("transactions.*, users.name as user_name, users.email as user_email, plans.title as plan_name").
+		Joins("LEFT JOIN users ON transactions.user_id = users.id").
+		Joins("LEFT JOIN plans ON transactions.product_id = plans.product_id")
+
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where("users.name ILIKE ? OR users.email ILIKE ?", searchPattern, searchPattern)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.Order("transactions.created_at DESC").
+		Limit(limit).
+		Offset(offset).
 		Scan(&results).Error
-	return results, err
+
+	return results, total, err
 }
