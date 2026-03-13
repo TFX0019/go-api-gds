@@ -34,8 +34,51 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 	eventType := payload.Event.Type
 	log.Printf("[RevenueCat Webhook] Received %s for user %d", eventType, userID)
 
+	// Save transaction log
+	txn := &Transaction{
+		UserID:                uint(userID),
+		RevenueCatID:          payload.Event.ID,
+		Type:                  eventType,
+		ProductID:             payload.Event.ProductID,
+		Store:                 payload.Event.Store,
+		Environment:           payload.Event.Environment,
+		Currency:              payload.Event.Currency,
+		Price:                 payload.Event.Price,
+		TransactionID:         payload.Event.TransactionID,
+		OriginalTransactionID: payload.Event.OriginalTransactionID,
+		EventTimestampMs:      payload.Event.EventTimestampMs,
+		PurchasedAtMs:         payload.Event.PurchasedAtMs,
+		ExpirationAtMs:        payload.Event.ExpirationAtMs,
+	}
+
+	err = s.repo.CreateTransaction(txn)
+	if err != nil {
+		log.Printf("[RevenueCat Webhook] Warning: could not log transaction for user %d: %v", userID, err)
+		// We still return nil since subscription upsert succeeded, this is just a log.
+	}
+
+	if payload.Event.ProductID == "pack_80_credits" {
+		if eventType == "NON_RENEWING_PURCHASE" || eventType == "INITIAL_PURCHASE" {
+			removeCreditsStr := config.GetEnv("REMOVE_CREDITS_FOR_GENERATION", "10")
+			removeCredits, _ := strconv.Atoi(removeCreditsStr)
+			if removeCredits == 0 {
+				removeCredits = 10
+			}
+			credits := 8 * removeCredits
+
+			err = s.walletsRepo.AddCredits(uint(userID), credits, wallets.TransactionTypeAddCredits, &payload.Event.ID)
+			if err != nil {
+				log.Printf("[RevenueCat Webhook] Error adding credits for user %d: %v", userID, err)
+				return err
+			}
+			log.Printf("[RevenueCat Webhook] Added %d credits to user %d from pack_80_credits", credits, userID)
+		}
+		return nil
+	}
+
 	status := SubscriptionStatusActive
 	switch eventType {
+
 	case "EXPIRATION":
 		status = SubscriptionStatusExpired
 	case "BILLING_ISSUE":
@@ -71,29 +114,6 @@ func (s *service) HandleRevenueCatWebhook(payload RevenueCatWebhook) error {
 	if err != nil {
 		log.Printf("[RevenueCat Webhook] Error upserting subscription for user %d: %v", userID, err)
 		return err
-	}
-
-	// Save transaction log
-	txn := &Transaction{
-		UserID:                uint(userID),
-		RevenueCatID:          payload.Event.ID,
-		Type:                  eventType,
-		ProductID:             payload.Event.ProductID,
-		Store:                 payload.Event.Store,
-		Environment:           payload.Event.Environment,
-		Currency:              payload.Event.Currency,
-		Price:                 payload.Event.Price,
-		TransactionID:         payload.Event.TransactionID,
-		OriginalTransactionID: payload.Event.OriginalTransactionID,
-		EventTimestampMs:      payload.Event.EventTimestampMs,
-		PurchasedAtMs:         payload.Event.PurchasedAtMs,
-		ExpirationAtMs:        payload.Event.ExpirationAtMs,
-	}
-
-	err = s.repo.CreateTransaction(txn)
-	if err != nil {
-		log.Printf("[RevenueCat Webhook] Warning: could not log transaction for user %d: %v", userID, err)
-		// We still return nil since subscription upsert succeeded, this is just a log.
 	}
 
 	// Add credits for purchase or renewal
