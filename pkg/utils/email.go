@@ -172,3 +172,31 @@ func SendRecoveryCode(email, code string) error {
 	log.Printf("Recovery Code Email Sent to %s. ID: %s", email, sent.Id)
 	return nil
 }
+
+func SendCouponEmail(email, coupon string) error {
+	apiKey := config.GetEnv("RESEND_API_KEY", "")
+	if apiKey == "" {
+		// Fallback to logging if no API key
+		log.Printf("[RESEND_MISSING] Secret Coupon %s sent to: %s", coupon, email)
+		return nil
+	}
+
+	client := resend.NewClient(apiKey)
+	from := config.GetEnv("RESEND_FROM", "noreply@patronesparacostura.com")
+
+	params := &resend.SendEmailRequest{
+		From:    from,
+		To:      []string{email},
+		Html:    fmt.Sprintf("<p>Thank you for your purchase! Here is your special coupon code:</p><h2>%s</h2>", coupon),
+		Subject: "Your Special Coupon Code",
+	}
+
+	sent, err := client.Emails.Send(params)
+	if err != nil {
+		log.Printf("Error sending coupon email with Resend: %v", err)
+		return err
+	}
+
+	log.Printf("Coupon Code Email Sent to %s. ID: %s", email, sent.Id)
+	return nil
+}
