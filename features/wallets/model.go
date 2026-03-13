@@ -22,6 +22,7 @@ const (
 	TransactionTypeSubscriptionRenewal TransactionType = "subscription_renewal"
 	TransactionTypeSubscriptionUpgrade TransactionType = "subscription_upgrade"
 	TransactionTypeImageGeneration     TransactionType = "image_generation"
+	TransactionTypeAddCredits          TransactionType = "add_credits"
 )
 
 // TODO: add payment gateway integration

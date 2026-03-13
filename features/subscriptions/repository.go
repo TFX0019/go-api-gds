@@ -9,6 +9,9 @@ type Repository interface {
 	UpsertSubscription(sub *Subscription) error
 	CreateTransaction(t *Transaction) error
 	GetAllTransactions(limit, offset int, search string) ([]TransactionResponse, int64, error)
+	HavePurchasedPack80Credits(userID uint) (bool, error)
+	GetActiveCoupon() (*string, error)
+	GetUserEmail(userID uint) (*string, error)
 }
 
 type repository struct {
@@ -75,4 +78,31 @@ func (r *repository) GetAllTransactions(limit, offset int, search string) ([]Tra
 		Scan(&results).Error
 
 	return results, total, err
+}
+
+func (r *repository) HavePurchasedPack80Credits(userID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&Transaction{}).Where("user_id = ? AND product_id = 'pack_80_credits' AND type IN ('INITIAL_PURCHASE', 'NON_RENEWING_PURCHASE')", userID).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *repository) GetActiveCoupon() (*string, error) {
+	var code string
+	err := r.db.Table("coupons").Where("active = ?", true).Select("code").First(&code).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // No active coupon
+		}
+		return nil, err
+	}
+	return &code, nil
+}
+
+func (r *repository) GetUserEmail(userID uint) (*string, error) {
+	var email string
+	err := r.db.Table("users").Where("id = ?", userID).Select("email").First(&email).Error
+	if err != nil {
+		return nil, err
+	}
+	return &email, nil
 }
