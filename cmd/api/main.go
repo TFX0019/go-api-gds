@@ -8,6 +8,7 @@ import (
 	"github.com/TFX0019/api-go-gds/features/ai"
 	"github.com/TFX0019/api-go-gds/features/auth"
 	"github.com/TFX0019/api-go-gds/features/banners"
+	"github.com/TFX0019/api-go-gds/features/coupons"
 	"github.com/TFX0019/api-go-gds/features/customers"
 	"github.com/TFX0019/api-go-gds/features/dashboard"
 	"github.com/TFX0019/api-go-gds/features/daily_credits"
@@ -21,10 +22,12 @@ import (
 	"github.com/TFX0019/api-go-gds/features/user"
 	"github.com/TFX0019/api-go-gds/features/wallets"
 	"github.com/TFX0019/api-go-gds/pkg/config"
+	"github.com/TFX0019/api-go-gds/pkg/cronjobs"
 	"github.com/TFX0019/api-go-gds/pkg/database"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -37,7 +40,7 @@ func main() {
 	// 3. Migrations
 	// Migrate Auth models
 	// Migrate models
-	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}, &ai.AIGeneration{}, &ai.AISuggestion{}, &links.Link{}, &banners.Banner{}, &daily_credits.DailyCredit{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &auth.VerificationCode{}, &auth.Role{}, &auth.Session{}, &customers.Customer{}, &products.Product{}, &products.ProductImage{}, &materials.Material{}, &tasks.Task{}, &wallets.Wallet{}, &wallets.CreditTransaction{}, &subscriptions.Subscription{}, &subscriptions.Transaction{}, &plans.Plan{}, &support.SupportCategory{}, &support.Support{}, &ai.AIGeneration{}, &ai.AISuggestion{}, &links.Link{}, &banners.Banner{}, &daily_credits.DailyCredit{}, &coupons.Coupon{}); err != nil {
 		log.Fatal("Migration failed: ", err)
 	}
 
@@ -165,7 +168,24 @@ func main() {
 	dailyCreditsController := daily_credits.NewController(dailyCreditsService)
 	daily_credits.RegisterRoutes(app, dailyCreditsController)
 
-	// 6. Start Server
+	// Coupons Feature
+	couponsRepo := coupons.NewRepository(database.DB)
+	couponsService := coupons.NewService(couponsRepo)
+	couponsController := coupons.NewController(couponsService)
+	coupons.RegisterRoutes(app, couponsController)
+
+	// 6. Cron Jobs
+	c := cron.New()
+	_, err := c.AddFunc("*/2 * * * *", func() {
+		cronjobs.CheckAndRefillCredits(database.DB)
+	})
+	if err != nil {
+		log.Printf("Failed to add cron job: %v", err)
+	}
+	c.Start()
+	defer c.Stop()
+
+	// 7. Start Server
 	port := config.GetEnv("PORT", "3000")
 	log.Printf("Server running on port %s", port)
 	if err := app.Listen(":" + port); err != nil {
